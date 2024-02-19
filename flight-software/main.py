@@ -1,33 +1,25 @@
-'''
-General rainbow routine for neopixel adapted from Adafruit Neopixel example.
-Should work on all PyCubed boards with a "NEOPIXEL" pin defined in firmware.
+"""
+'main.py'
+======================
+Comms PyCubed test bench. 
 
-M.Holliday
-pycubed.org
-'''
+Authors: DJ Morvay, Akshat Sahay
+"""
+
+# PyCubed Board Lib
 from pycubed import cubesat
-import time
 
-cubesat.neopixel.auto_write=False
-# cubesat.neopixel.brightness=1
+# Argus-1 Radio Libs
+from argus_radio_helpers import *
+from PyCubed_Radio_helpers import *
 
-def wheel(pos):
-    if pos < 0 or pos > 255:
-        return (0, 0, 0)
-    if pos < 85:
-        return (255 - pos * 3, pos * 3, 0)
-    if pos < 170:
-        pos -= 85
-        return (0, 255 - pos * 3, pos * 3)
-    pos -= 170
-    return (pos * 3, 0, 255 - pos * 3)
+SAT_RADIO1 = SAT_RADIO()
 
-def rainbow_cycle(wait):
-    for j in range(255):
-        cubesat.RGB = wheel(j & 255)
-        cubesat.neopixel.show()
-        time.sleep(wait)
+## ---------- MAIN CODE STARTS HERE! ---------- ##
 
-######################### MAIN LOOP ##############################
 while True:
-     rainbow_cycle(0.1) # change value to adjust speed
+    if cubesat.hardware['Radio1']:
+        SAT_RADIO1.transmit_message()
+
+    if cubesat.hardware['Radio1']:
+        SAT_RADIO1.receive_message()
