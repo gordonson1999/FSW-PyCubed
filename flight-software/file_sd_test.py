@@ -3,7 +3,7 @@ import board, microcontroller
 import random
 from collections import OrderedDict
 
-from file_manager import FileManager
+from apps.file_manager import FileManager
 
 
 fm = FileManager(board.SPI(), board.SD_CS)

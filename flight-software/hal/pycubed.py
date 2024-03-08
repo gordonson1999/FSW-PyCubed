@@ -1,27 +1,24 @@
 """
-CircuitPython driver for PyCubed satellite board.
-PyCubed Hardware Version: mainboard-v05
+CircuitPython driver for the modified PyCubed satellite board for Argus-1.
+PyCubed Hardware Version: mainboard-v05 TODO - update this
 CircuitPython Version: 7.0.0 alpha
-Library Repo: https://github.com/pycubed/library_pycubed.py
-
-* Author(s): Max Holliday
 """
+
 # Common CircuitPython Libs
 import board, microcontroller
 import busio, time, sys
 from storage import mount,umount,VfsFat
 from analogio import AnalogIn
-import digitalio, sdcardio, pwmio, tasko
+import digitalio, sdcardio, pwmio
 
 # Hardware Specific Libs
-import pycubed_rfm9x # Radio
-import bmx160 # IMU
+from drivers import rfm9x # Radio
+from drivers import bmx160 # IMU
 import neopixel # RGB LED
-import bq25883 # USB Charger
-import adm1176 # Power Monitor
+from drivers import bq25883 # USB Charger
+from drivers import adm1176 # Power Monitor
 
 # Common CircuitPython Libs
-from os import listdir,stat,statvfs,mkdir,chdir
 from bitflags import bitFlag,multiBitFlag,multiByte
 from micropython import const
 
@@ -37,7 +34,35 @@ _FLAG     = const(16)
 
 SEND_BUFF=bytearray(252)
 
-class Satellite:
+
+class device:
+    """
+    Based on the code from: https://docs.python.org/3/howto/descriptor.html#properties
+    Attempts to return the appropriate hardware device.
+    If this fails, it will attempt to reinitialize the hardware.
+    If this fails again, it will raise an exception.
+    """
+
+    def __init__(self, fget=None):
+        self.fget = fget
+        self._device = None
+
+    def __get__(self, instance, owner=None):
+        if instance is None:
+            return self
+        if self.fget is None:
+            raise AttributeError(f'unreadable attribute {self._name}')
+
+        if self._device is not None:
+            return self._device
+        else:
+            self._device = self.fget(instance)
+            return self._device
+        
+
+
+class PyCubed:
+
     # General NVM counters
     c_boot      = multiBitFlag(register=_BOOTCNT, lowest_bit=0,num_bits=8)
     c_vbusrst   = multiBitFlag(register=_VBUSRST, lowest_bit=0,num_bits=8)
@@ -52,6 +77,18 @@ class Satellite:
     f_lowbtout = bitFlag(register=_FLAG,bit=3)
     f_gpsfix   = bitFlag(register=_FLAG,bit=4)
     f_shtdwn   = bitFlag(register=_FLAG,bit=5)
+
+    instance = None
+
+    def __new__(cls):
+        """
+        Override to ensure this class has only one instance.
+        """
+        if not cls.instance:
+            cls.instance = object.__new__(cls)
+            cls.instance = super(PyCubed, cls).__new__(cls)
+        return cls.instance
+
 
     def __init__(self):
         """
@@ -96,9 +133,6 @@ class Satellite:
         self.en_gps = digitalio.DigitalInOut(board.EN_GPS)
         self.en_gps.switch_to_output()
 
-        # Define filesystem stuff
-        self.logfile="/log.txt"
-
         # Define radio
         _rf_cs1 = digitalio.DigitalInOut(board.RF1_CS)
         _rf_rst1 = digitalio.DigitalInOut(board.RF1_RST)
@@ -119,7 +153,6 @@ class Satellite:
             self.fs=_vfs
             sys.path.append("/sd")
             self.hardware['SDcard'] = True
-            self.logfile="/sd/log.txt"
         except Exception as e:
             if self.debug: print('[ERROR][SD Card]',e)
 
@@ -168,7 +201,7 @@ class Satellite:
 
         # Initialize radio #1 - UHF
         try:
-            self.radio1 = pycubed_rfm9x.RFM9x(self.spi, _rf_cs1, _rf_rst1,
+            self.radio1 = rfm9x.RFM9x(self.spi, _rf_cs1, _rf_rst1,
                 433.0,code_rate=8,baudrate=1320000)
             # Default LoRa Modulation Settings
             # Frequency: 433 MHz, SF7, BW125kHz, CR4/8, Preamble=8, CRC=True
@@ -195,6 +228,7 @@ class Satellite:
             self.IMU.__init__(self.i2c1)
         else:
             print('Invalid Device? ->',dev)
+
 
     @property
     def acceleration(self):
@@ -302,24 +336,6 @@ class Satellite:
         self._resetReg.drive_mode=digitalio.DriveMode.PUSH_PULL
         self._resetReg.value=1
 
-    def log(self, msg):
-        if self.hardware['SDcard']:
-            with open(self.logfile, "a+") as f:
-                t=int(time.monotonic())
-                f.write('{}, {}\n'.format(t,msg))
-
-    def print_file(self,filedir=None,binary=False):
-        if filedir==None:
-            return
-        print('\n--- Printing File: {} ---'.format(filedir))
-        if binary:
-            with open(filedir, "rb") as file:
-                print(file.read())
-                print('')
-        else:
-            with open(filedir, "r") as file:
-                for line in file:
-                    print(line.strip())
 
     def timeout_handler(self):
         print('Incrementing timeout register')
@@ -333,6 +349,7 @@ class Satellite:
 
     def powermode(self,mode):
         """
+        TODO
         Configure the hardware for minimum or normal power consumption
         Add custom modes for mission-specific control
         """
@@ -365,41 +382,6 @@ class Satellite:
             self.power_mode = 'normal'
             # don't forget to reconfigure radios, gps, etc...
 
-    def new_file(self,substring,binary=False):
-        '''
-        substring something like '/data/DATA_'
-        directory is created on the SD!
-        int padded with zeros will be appended to the last found file
-        '''
-        if self.hardware['SDcard']:
-            ff=''
-            n=0
-            _folder=substring[:substring.rfind('/')+1]
-            _file=substring[substring.rfind('/')+1:]
-            print('Creating new file in directory: /sd{} with file prefix: {}'.format(_folder,_file))
-            try: chdir('/sd'+_folder)
-            except OSError:
-                print('Directory {} not found. Creating...'.format(_folder))
-                try: mkdir('/sd'+_folder)
-                except Exception as e:
-                    print(e)
-                    return None
-            for i in range(0xFFFF):
-                ff='/sd{}{}{:05}.txt'.format(_folder,_file,(n+i)%0xFFFF)
-                try:
-                    if n is not None:
-                        stat(ff)
-                except:
-                    n=(n+i)%0xFFFF
-                    # print('file number is',n)
-                    break
-            print('creating file...',ff)
-            if binary: b='ab'
-            else: b='a'
-            with open(ff,b) as f:
-                f.tell()
-            chdir('/')
-            return ff
 
     def burn(self,burn_num,dutycycle=0,freq=1000,duration=1):
         """
@@ -444,4 +426,4 @@ class Satellite:
         self._relayA.drive_mode=digitalio.DriveMode.OPEN_DRAIN
         return True
 
-cubesat = Satellite()
+hardware = PyCubed()
