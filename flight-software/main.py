@@ -11,9 +11,8 @@ from pycubed import cubesat
 
 # Argus-1 Radio Libs
 from argus_radio_helpers import *
-from PyCubed_Radio_helpers import *
 
-SAT_RADIO1 = SAT_RADIO()
+SAT_RADIO1 = SATELLITE_RADIO()
 
 ## ---------- MAIN CODE STARTS HERE! ---------- ##
 

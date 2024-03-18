@@ -25,16 +25,16 @@ class SATELLITE_RADIO:
         Description: Initialization of SATELLITE class
     '''
     def __init__(self):
-        self.get_image_info()
+        self.image_get_info()
         self.heartbeat_sent = False
         self.image_deleted = True
         self.last_image_id = 0x00
     
     '''
-        Name: get_image_info
+        Name: image_get_info
         Description: Read three images from flash, store in buffer
     '''
-    def get_image_info(self):
+    def image_get_info(self):
         # Setup image class
         self.sat_images = IMAGES()
         # Setup initial image UIDs
@@ -77,10 +77,10 @@ class SATELLITE_RADIO:
         print("This image #3 requires",self.sat_images.image_3_message_count,"messages")
 
     '''
-        Name: pack_image_info
+        Name: image_pack_info
         Description: Pack message ID, UID, size, and message count for all images in buffer.
     '''
-    def pack_image_info(self):
+    def image_pack_info(self):
         return (self.sat_images.image_1_CMD_ID.to_bytes(1,'big') + self.sat_images.image_1_UID.to_bytes(1,'big') + \
                 self.sat_images.image_1_size.to_bytes(4,'big') + self.sat_images.image_1_message_count.to_bytes(2,'big') + \
                 self.sat_images.image_2_CMD_ID.to_bytes(1,'big') + self.sat_images.image_2_UID.to_bytes(1,'big') + \
@@ -89,10 +89,12 @@ class SATELLITE_RADIO:
                 self.sat_images.image_3_size.to_bytes(4,'big') + self.sat_images.image_3_message_count.to_bytes(2,'big'))
 
     '''
-        Name: pack_image
+        Name: image_pack_images
         Description: Pack one image into an array
+        Inputs:
+            IMG_CMD - image requested command
     '''
-    def pack_image(self,IMG_CMD):
+    def image_pack_images(self,IMG_CMD):
         # Initialize image arrays
         self.image_array = []
         image_1_str = '/sd/IMAGES/ohio.jpg'
@@ -163,8 +165,6 @@ class SATELLITE_RADIO:
     '''
         Name: received_message
         Description: This function waits for a message to be received from the LoRa module
-        Inputs:
-            NONE
     '''
     def receive_message(self):
         received_success = False
@@ -188,8 +188,6 @@ class SATELLITE_RADIO:
     '''
         Name: transmit_message
         Description: SAT transmits message via the LoRa module when the function is called.
-        Inputs:
-            NONE
     '''
     def transmit_message(self):
         time.sleep(0.15)
@@ -202,7 +200,7 @@ class SATELLITE_RADIO:
         elif self.gs_req_message_ID == SAT_IMAGES:
             # Transmit stored image info
             tx_header = bytes([SAT_IMAGES,0x0,0x0,0x18])
-            tx_payload = self.pack_image_info()
+            tx_payload = self.image_pack_info()
             tx_message = tx_header + tx_payload
 
         elif self.gs_req_message_ID == SAT_DEL_IMG1:
@@ -229,7 +227,7 @@ class SATELLITE_RADIO:
         elif (self.gs_req_message_ID == SAT_IMG1_CMD) or (self.gs_req_message_ID == SAT_IMG2_CMD) or (self.gs_req_message_ID == SAT_IMG3_CMD):
             # Transmit image in multiple packets
             if (self.gs_req_message_ID != self.last_image_id) or (self.image_deleted):
-                self.pack_image(self.gs_req_message_ID)
+                self.image_pack_images(self.gs_req_message_ID)
                 self.image_deleted = False
 
             # Header
