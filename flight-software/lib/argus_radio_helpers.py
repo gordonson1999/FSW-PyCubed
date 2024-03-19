@@ -255,6 +255,7 @@ class SATELLITE_RADIO:
             # Send a message to GS
             cubesat.radio1.send(tx_message)
 
+            # This code is practically the same as Ground Station function hold_receive_mode
             if ((self.gs_req_message_ID == SAT_IMG1_CMD) or (self.gs_req_message_ID == SAT_IMG2_CMD) or (self.gs_req_message_ID == SAT_IMG3_CMD)):
                 if (self.gs_req_message_ID == SAT_IMG2_CMD):
                     target_sequence_count = self.sat_images.image_2_message_count
@@ -263,7 +264,8 @@ class SATELLITE_RADIO:
                 else:
                     target_sequence_count = self.sat_images.image_1_message_count
                 
-                if ((((self.gs_req_seq_count + multiple_packet_count) % self.send_mod) > 0) and ((self.gs_req_message_ID + multiple_packet_count) < (target_sequence_count - 1))):
+                if (((((self.gs_req_seq_count + multiple_packet_count) % self.send_mod) > 0) and ((self.gs_req_message_ID + multiple_packet_count) < (target_sequence_count - 1))) or \
+                    ((self.gs_req_seq_count + multiple_packet_count) == 0)):
                     multiple_packet_count += 1
                     send_multiple = True
                 else:
