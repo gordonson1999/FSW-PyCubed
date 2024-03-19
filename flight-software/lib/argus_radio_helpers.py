@@ -17,7 +17,7 @@ import sys
 from pycubed import cubesat
 
 # Argus-1 Lib
-from argus_radio_helpers import *
+from argus_radio_protocol import *
 
 class SATELLITE_RADIO:
     '''
@@ -29,6 +29,8 @@ class SATELLITE_RADIO:
         self.heartbeat_sent = False
         self.image_deleted = True
         self.last_image_id = 0x00
+        self.gs_req_message_ID = SAT_HEARTBEAT
+    
     
     '''
         Name: image_get_info

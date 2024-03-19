@@ -61,7 +61,7 @@ def construct_message(lora_tx_message_ID):
 
     if(lora_tx_message_ID == SAT_HEARTBEAT):
         # Construct SAT heartbeat 
-        lora_tx_message = [SAT_HEARTBEAT, 0x00, 0x00, 0x0F] 
+        lora_tx_message = [SAT_HEARTBEAT, 0x00, 0x01, 0x0F] 
 
         # Generate LoRa payload for SAT heartbeat 
         # Add system status
@@ -86,6 +86,23 @@ def construct_message(lora_tx_message_ID):
 
         # Add no request from satellite 
         lora_tx_message += [0x00, 0x00, 0x00]
+
+    elif(lora_tx_message_ID == GS_ACK):
+        # Construct GS acknowledgement 
+        lora_tx_message = [GS_ACK, 0x00, 0x01, 0x04] 
+
+        # Generate LoRa payload for GS acknowledgement  
+        # Add received message ID
+        prev_message_ID = get_prev_message_ID()
+        lora_tx_message.append(prev_message_ID)
+
+        # Add received message ID
+        req_message_ID = get_req_message_ID()
+        lora_tx_message.append(req_message_ID)
+
+        # Add received message ID
+        req_message_sq = get_req_message_sq()
+        lora_tx_message += req_message_sq
     
     return bytes(lora_tx_message)
 
@@ -97,6 +114,23 @@ def deconstruct_message(lora_rx_message):
     Deconstructs RX message based on message ID
     """
     # check RX message ID 
+    if(lora_rx_message[0] == SAT_HEARTBEAT):
+        # received satellite heartbeat, deconstruct header 
+        print("GS: Received SAT heartbeat!")
+        sq = (lora_rx_message[1] << 8) + lora_rx_message[2]
+        print("GS: Sequence Count:", sq)
+        print("GS: Message Length:", lora_rx_message[3])
+
+        # deconstruct message contents 
+        print("GS: Satellite system status:", lora_rx_message[4], lora_rx_message[5])
+        print("GS: Satellite battery SOC: " + str(lora_rx_message[6]) + "%")
+        print("GS: Satellite temperature: " + str(lora_rx_message[7]) + "*C")
+        sat_lat = convert_floating_point(lora_rx_message[8:12])
+        sat_long = convert_floating_point(lora_rx_message[12:16])
+        print("GS: Satellite is at: " + str(sat_lat) + ", " + str(sat_long))
+        sq = (lora_rx_message[17] << 8) + lora_rx_message[18]
+        print("GS: Satellite request: " + str(lora_rx_message[16]) + ", packet: " + str(sq))
+
     elif(lora_rx_message[0] == GS_ACK):
         print("SAT: Received GS ack!")
         sq = (lora_rx_message[1] << 8) + lora_rx_message[2]
@@ -187,3 +221,15 @@ def get_long():
     # Return satellite longitude 
     sat_long = -79.945278
     return convert_fixed_point(sat_long)
+
+def get_prev_message_ID():
+    # Return the previous message received 
+    return 0x01
+
+def get_req_message_ID():
+    # Return requested message ID
+    return 0x01 
+
+def get_req_message_sq():
+    # Return requested message sequence count 
+    return [0x00, 0x001]
