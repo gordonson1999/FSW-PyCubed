@@ -17,7 +17,10 @@ Authors: DJ Morvay, Akshat Sahay
 from pycubed import cubesat
 
 # Message ID definitions 
-SAT_HEARTBEAT = 0x01
+SAT_HEARTBEAT_BATT  = 0x00
+SAT_HEARTBEAT_SUN   = 0x01
+SAT_HEARTBEAT_IMU   = 0x02
+SAT_HEARTBEAT_GPS   = 0x03
 
 GS_ACK  = 0x08
 SAT_ACK = 0x09
@@ -59,33 +62,25 @@ def construct_message(lora_tx_message_ID):
     # LoRa header
     lora_tx_message = [0x00, 0x00, 0x00, 0x00] 
 
-    if(lora_tx_message_ID == SAT_HEARTBEAT):
+    if(lora_tx_message_ID == SAT_HEARTBEAT_BATT):
         # Construct SAT heartbeat 
-        lora_tx_message = [SAT_HEARTBEAT, 0x00, 0x00, 0x0F] 
+        lora_tx_message = [SAT_HEARTBEAT, 0x00, 0x00, 0x0F]
 
         # Generate LoRa payload for SAT heartbeat 
         # Add system status
-        system_status = get_system_status()
-        lora_tx_message += system_status
+        lora_tx_message += [0x00, 0x00]
 
-        # Add satellite battery SOC
-        batt_soc = get_batt_soc()
-        lora_tx_message.append(batt_soc)
+        # Add battery SOCs, 1 byte for each battery 
+        lora_tx_message += [0x53, 0x51, 0x47, 0x61, 0x52, 0x51]
 
-        # Add satellite temperature 
-        temperature = get_temperature()
-        lora_tx_message.append(temperature)
+        # Add current as float
+        lora_tx_message += convert_fixed_point(891.18)
 
-        # Add satellite latitude 
-        sat_lat = get_lat()
-        lora_tx_message += sat_lat
+        # Add reboot count and payload status
+        lora_tx_message += [0x00, 0x00]
 
-        # Add satellite longitude  
-        sat_long = get_long()
-        lora_tx_message += sat_long
-
-        # Add no request from satellite 
-        lora_tx_message += [0x00, 0x00, 0x00]
+        # Add time reference as uint32_t 
+        lora_tx_message += [0x65, 0xF9, 0xE8, 0x4A]
     
     return bytes(lora_tx_message)
 
@@ -158,32 +153,3 @@ def convert_floating_point(message_list):
     if(neg_bit_flag == 1): val = -1 * val
 
     return val
-
-"""
-Dummy Low Level Interface Functions
-===================================
-Placeholders for FSW API to get information for telemetry
-Delete when this code is integrated with CircuitPython FSW / GS software 
-"""
-
-def get_system_status():
-    # Return system status
-    return [0x1F, 0xFF]
-
-def get_batt_soc():
-    # Return battery SOC % 
-    return 80
-
-def get_temperature():
-    # Return satellite temp in *C
-    return 16
-
-def get_lat(): 
-    # Return satellite latitude 
-    sat_lat = 40.445
-    return convert_fixed_point(sat_lat)
-
-def get_long():
-    # Return satellite longitude 
-    sat_long = -79.945278
-    return convert_fixed_point(sat_long)

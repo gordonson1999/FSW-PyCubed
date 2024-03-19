@@ -194,7 +194,7 @@ class SATELLITE_RADIO:
 
         if not self.heartbeat_sent:
             # Transmit SAT heartbeat
-            tx_message = construct_message(SAT_HEARTBEAT)
+            tx_message = construct_message(SAT_HEARTBEAT_BATT)
             self.heartbeat_sent = True
 
         elif self.gs_req_message_ID == SAT_IMAGES:
