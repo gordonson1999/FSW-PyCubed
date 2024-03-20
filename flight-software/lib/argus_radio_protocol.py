@@ -64,7 +64,7 @@ def construct_message(lora_tx_message_ID):
 
     if(lora_tx_message_ID == SAT_HEARTBEAT_BATT):
         # Construct SAT heartbeat 
-        lora_tx_message = [SAT_HEARTBEAT, 0x00, 0x00, 0x0F]
+        lora_tx_message = [SAT_HEARTBEAT_BATT, 0x00, 0x00, 0x12]
 
         # Generate LoRa payload for SAT heartbeat 
         # Add system status
@@ -81,7 +81,112 @@ def construct_message(lora_tx_message_ID):
 
         # Add time reference as uint32_t 
         lora_tx_message += [0x65, 0xF9, 0xE8, 0x4A]
-    
+
+    else if(lora_tx_message_ID == SAT_HEARTBEAT_SUN):
+        # Construct SAT heartbeat 
+        lora_tx_message = [SAT_HEARTBEAT_SUN, 0x00, 0x00, 0x12]
+
+        # Generate LoRa payload for SAT heartbeat 
+        # Add system status
+        lora_tx_message += [0x00, 0x00]
+
+        # Add x-axis sun vector 
+        lora_tx_message += convert_fixed_point(1957.1957)
+
+        # Add y-axis sun vector 
+        lora_tx_message += convert_fixed_point(1957.1957)
+
+        # Add z-axis sun vector 
+        lora_tx_message += convert_fixed_point(1957.1957)
+
+        # Add time reference as uint32_t 
+        lora_tx_message += [0x65, 0xF9, 0xE8, 0x4A]
+
+    else if(lora_tx_message_ID == SAT_HEARTBEAT_IMU):
+        # Construct SAT heartbeat 
+        lora_tx_message = [SAT_HEARTBEAT_IMU, 0x00, 0x00, 0x2A]
+
+        # Generate LoRa payload for SAT heartbeat 
+        # Add system status
+        lora_tx_message += [0x00, 0x00]
+
+        # Add x-axis acceleration 
+        lora_tx_message += convert_fixed_point(1000.1)
+
+        # Add y-axis acceleration 
+        lora_tx_message += convert_fixed_point(1000.2)
+
+        # Add z-axis acceleration 
+        lora_tx_message += convert_fixed_point(1000.3)
+
+        # Add x-axis magnetometer value 
+        lora_tx_message += convert_fixed_point(1001.1)
+
+        # Add y-axis magnetometer value 
+        lora_tx_message += convert_fixed_point(1001.2)
+
+        # Add z-axis magnetometer value 
+        lora_tx_message += convert_fixed_point(1001.3)
+
+        # Add x-axis gyroscope value 
+        lora_tx_message += convert_fixed_point(1002.1)
+
+        # Add y-axis gyroscope value 
+        lora_tx_message += convert_fixed_point(1002.2)
+
+        # Add z-axis gyroscope value 
+        lora_tx_message += convert_fixed_point(1002.3)
+
+        # Add time reference as uint32_t 
+        lora_tx_message += [0x65, 0xF9, 0xE8, 0x4A]
+
+    else if(lora_tx_message_ID == SAT_HEARTBEAT_GPS):
+        # Construct SAT heartbeat 
+        lora_tx_message = [SAT_HEARTBEAT_GPS, 0x00, 0x00, 0x36]
+
+        # Generate LoRa payload for SAT heartbeat 
+        # Add system status
+        lora_tx_message += [0x00, 0x00]
+
+        # Add x-axis GPS ECEF position 
+        lora_tx_message += convert_fixed_point(2000.1)
+
+        # Add y-axis GPS ECEF position 
+        lora_tx_message += convert_fixed_point(2000.2)
+
+        # Add z-axis GPS ECEF position 
+        lora_tx_message += convert_fixed_point(2000.3)
+
+        # Add x-axis GPS ECEF SD position 
+        lora_tx_message += convert_fixed_point(2001.1)
+
+        # Add y-axis GPS ECEF SD position 
+        lora_tx_message += convert_fixed_point(2001.2)
+
+        # Add z-axis GPS ECEF SD position 
+        lora_tx_message += convert_fixed_point(2001.3)
+
+        # Add x-axis GPS ECEF velocity 
+        lora_tx_message += convert_fixed_point(2002.1)
+
+        # Add y-axis GPS ECEF velocity 
+        lora_tx_message += convert_fixed_point(2002.2)
+
+        # Add z-axis GPS ECEF velocity 
+        lora_tx_message += convert_fixed_point(2002.3)
+
+        # Add x-axis GPS ECEF SD velocity 
+        lora_tx_message += convert_fixed_point(2003.1)
+
+        # Add y-axis GPS ECEF SD velocity 
+        lora_tx_message += convert_fixed_point(2003.2)
+
+        # Add z-axis GPS ECEF SD velocity 
+        lora_tx_message += convert_fixed_point(2003.3)
+
+        # Add time reference as uint32_t 
+        lora_tx_message += [0x65, 0xF9, 0xE8, 0x4A]
+
     return bytes(lora_tx_message)
 
 def deconstruct_message(lora_rx_message):
