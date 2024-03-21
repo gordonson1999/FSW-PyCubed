@@ -30,8 +30,12 @@ class SATELLITE_RADIO:
         self.heartbeat_sent = False
         self.image_deleted = True
         self.last_image_id = 0x00
-        self.gs_req_message_ID = SAT_HEARTBEAT
-    
+
+        self.gs_req_ack = 0x0
+        self.gs_rx_message_ID = 0x0
+        self.gs_req_message_ID = 0x0
+        self.gs_req_seq_count = 0
+        self.sat_req_ack = 0x0
     
     '''
         Name: image_get_info
@@ -155,7 +159,8 @@ class SATELLITE_RADIO:
     '''
     def unpack_message(self,packet):
         # Can run deconstruct_message() for debug output 
-        self.rx_message_ID = int.from_bytes(packet[0:1],'big')
+        self.gs_req_ack = int.from_bytes(packet[0:1],'big') & 0b10000000
+        self.rx_message_ID = int.from_bytes(packet[0:1],'big') & 0b01111111
         self.rx_message_sequence_count = int.from_bytes(packet[1:3],'big')
         self.rx_message_size = int.from_bytes(packet[3:4],'big')
         print("Message received header:",list(packet[0:4]))
@@ -170,23 +175,15 @@ class SATELLITE_RADIO:
         Description: This function waits for a message to be received from the LoRa module
     '''
     def receive_message(self):
-        received_success = False
-        wait_time = 0
-        begin_time = time.time()
-
-        while not received_success:
-            my_packet = cubesat.radio1.receive()
-            if my_packet is None:
-                wait_time = time.time() - begin_time
-                if (wait_time >= 5):
-                    self.heartbeat_sent = False
-                    break
-            else:
-                print(f'Received (raw bytes): {my_packet}')
-                rssi = cubesat.radio1.rssi(raw=True)
-                print(f'Received signal strength: {rssi} dBm')
-                self.unpack_message(my_packet)
-                received_success = True
+        my_packet = cubesat.radio1.receive(timeout = 5)
+        if my_packet is None:
+            self.heartbeat_sent = False
+            self.gs_req_message_ID = 0x00
+        else:
+            print(f'Received (raw bytes): {my_packet}')
+            rssi = cubesat.radio1.rssi(raw=True)
+            print(f'Received signal strength: {rssi} dBm')
+            self.unpack_message(my_packet)
 
     '''
         Name: transmit_message
@@ -194,39 +191,66 @@ class SATELLITE_RADIO:
     '''
     def transmit_message(self):
         send_multiple = True
-        multiple_packet_count = 0
+        multiple_packet_count = -1
+        target_sequence_count = 0
 
         while send_multiple:
             time.sleep(0.15)
 
+            # This code is practically the same as Ground Station function hold_receive_mode
+            if ((self.gs_req_message_ID == SAT_IMG1_CMD) or (self.gs_req_message_ID == SAT_IMG2_CMD) or (self.gs_req_message_ID == SAT_IMG3_CMD)):
+                if (self.gs_req_message_ID == SAT_IMG2_CMD):
+                    target_sequence_count = self.sat_images.image_2_message_count
+                elif (self.gs_req_message_ID == SAT_IMG3_CMD):
+                    target_sequence_count = self.sat_images.image_3_message_count
+                else:
+                    target_sequence_count = self.sat_images.image_1_message_count
+
+                multiple_packet_count += 1
+                # print(self.gs_req_message_ID)
+                # print(((self.gs_req_seq_count + multiple_packet_count) % self.send_mod))
+                # print(target_sequence_count)
+                
+                if (((((self.gs_req_seq_count + multiple_packet_count) % self.send_mod) > 0) and ((self.gs_req_seq_count + multiple_packet_count) < (target_sequence_count - 1))) or \
+                    ((self.gs_req_seq_count + multiple_packet_count) == 0)):
+                    send_multiple = True
+                    self.sat_req_ack = 0x0
+                else:
+                    send_multiple = False
+                    self.sat_req_ack = REQ_ACK_NUM
+            else:
+                send_multiple = False
+                self.sat_req_ack = REQ_ACK_NUM
+
             if not self.heartbeat_sent:
                 # Transmit SAT heartbeat
+                tx_header = [self.sat_req_ack | SAT_HEARTBEAT, 0x00, 0x01, 0x0F]
                 tx_message = construct_message(SAT_HEARTBEAT)
                 self.heartbeat_sent = True
 
             elif self.gs_req_message_ID == SAT_IMAGES:
                 # Transmit stored image info
-                tx_header = bytes([SAT_IMAGES,0x0,0x0,0x18])
+                tx_header = bytes([(self.sat_req_ack | SAT_IMAGES),0x0,0x0,0x18])
                 tx_payload = self.image_pack_info()
                 tx_message = tx_header + tx_payload
 
             elif self.gs_req_message_ID == SAT_DEL_IMG1:
                 # Transmit successful deletion of stored image 1
-                tx_header = bytes([SAT_DEL_IMG1,0x0,0x0,0x1])
+                tx_header = bytes([(self.sat_req_ack | SAT_DEL_IMG1),0x0,0x0,0x1])
                 tx_payload = bytes([0x1])
                 tx_message = tx_header + tx_payload
                 self.image_deleted = True
             
             elif self.gs_req_message_ID == SAT_DEL_IMG2:
                 # Transmit successful deletion of stored image 2
-                tx_header = bytes([SAT_DEL_IMG2,0x0,0x0,0x1])
+                tx_header = bytes([(self.sat_req_ack | SAT_DEL_IMG2),0x0,0x0,0x1])
                 tx_payload = bytes([0x1])
                 tx_message = tx_header + tx_payload
                 self.image_deleted = True
 
             elif self.gs_req_message_ID == SAT_DEL_IMG3:
                 # Transmit successful deletion of stored image 3
-                tx_header = bytes([SAT_DEL_IMG3,0x0,0x0,0x1])
+                tx_header = bytes([(self.sat_req_ack | SAT_DEL_IMG3),0x0,0x0,0x1])
                 tx_payload = bytes([0x1])
                 tx_message = tx_header + tx_payload
                 self.image_deleted = True
@@ -238,8 +262,8 @@ class SATELLITE_RADIO:
                     self.image_deleted = False
 
                 # Header
-                tx_header = (self.gs_req_message_ID.to_bytes(1,'big') + self.gs_req_seq_count.to_bytes(2,'big') \
-                            + len(self.image_array[self.gs_req_seq_count]).to_bytes(1,'big'))
+                tx_header = ((self.sat_req_ack | self.gs_req_message_ID).to_bytes(1,'big') + (self.gs_req_seq_count + multiple_packet_count).to_bytes(2,'big') \
+                            + len(self.image_array[self.gs_req_seq_count + multiple_packet_count]).to_bytes(1,'big'))
                 # Payload
                 tx_payload = self.image_array[self.gs_req_seq_count + multiple_packet_count]
                 # Pack entire message
@@ -249,30 +273,12 @@ class SATELLITE_RADIO:
 
             else:
                 # Run construct_message() when telemetry information is complete
-                tx_header = (self.gs_req_message_ID.to_bytes(1,'big') + (0x0).to_bytes(1,'big') + (0x0).to_bytes(1,'big') + (0x0).to_bytes(1,'big'))
+                tx_header = ((self.sat_req_ack | self.gs_req_message_ID).to_bytes(1,'big') + (0x0).to_bytes(1,'big') + (0x0).to_bytes(1,'big') + (0x0).to_bytes(1,'big'))
                 tx_message = tx_header
 
             # Send a message to GS
             cubesat.radio1.send(tx_message)
 
-            # This code is practically the same as Ground Station function hold_receive_mode
-            if ((self.gs_req_message_ID == SAT_IMG1_CMD) or (self.gs_req_message_ID == SAT_IMG2_CMD) or (self.gs_req_message_ID == SAT_IMG3_CMD)):
-                if (self.gs_req_message_ID == SAT_IMG2_CMD):
-                    target_sequence_count = self.sat_images.image_2_message_count
-                elif (self.gs_req_message_ID == SAT_IMG3_CMD):
-                    target_sequence_count = self.sat_images.image_3_message_count
-                else:
-                    target_sequence_count = self.sat_images.image_1_message_count
-                
-                if (((((self.gs_req_seq_count + multiple_packet_count) % self.send_mod) > 0) and ((self.gs_req_message_ID + multiple_packet_count) < (target_sequence_count - 1))) or \
-                    ((self.gs_req_seq_count + multiple_packet_count) == 0)):
-                    multiple_packet_count += 1
-                    send_multiple = True
-                else:
-                    send_multiple = False
-            else:
-                send_multiple = False
-
             # Debug output of message in bytes
-            print("Satellite sent message:", tx_message)
+            print("Satellite sent message with header:", tx_header)
             print("\n")

@@ -31,6 +31,8 @@ SAT_IMG1_CMD = 0x50
 SAT_IMG2_CMD = 0x51
 SAT_IMG3_CMD = 0x52
 
+REQ_ACK_NUM = 0x80
+
 class IMAGES:
     def __init__(self):
         # Image #1 declarations
@@ -61,7 +63,7 @@ def construct_message(lora_tx_message_ID):
 
     if(lora_tx_message_ID == SAT_HEARTBEAT):
         # Construct SAT heartbeat 
-        lora_tx_message = [SAT_HEARTBEAT, 0x00, 0x01, 0x0F] 
+        lora_tx_message = [REQ_ACK_NUM | SAT_HEARTBEAT, 0x00, 0x01, 0x0F] 
 
         # Generate LoRa payload for SAT heartbeat 
         # Add system status
@@ -89,7 +91,7 @@ def construct_message(lora_tx_message_ID):
 
     elif(lora_tx_message_ID == GS_ACK):
         # Construct GS acknowledgement 
-        lora_tx_message = [GS_ACK, 0x00, 0x01, 0x04] 
+        lora_tx_message = [REQ_ACK_NUM | GS_ACK, 0x00, 0x01, 0x04] 
 
         # Generate LoRa payload for GS acknowledgement  
         # Add received message ID
