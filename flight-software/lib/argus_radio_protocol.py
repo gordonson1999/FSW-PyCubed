@@ -40,6 +40,8 @@ HEARTBEAT_SEQ = [SAT_HEARTBEAT_BATT, SAT_HEARTBEAT_BATT, SAT_HEARTBEAT_SUN, SAT_
 # Other constants
 REQ_ACK_NUM = 0x80
 
+REQ_ACK_NUM = 0x80
+
 class IMAGES:
     def __init__(self):
         # Image #1 declarations
