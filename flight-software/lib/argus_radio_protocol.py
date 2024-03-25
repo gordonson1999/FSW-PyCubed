@@ -34,6 +34,10 @@ SAT_IMG1_CMD = 0x50
 SAT_IMG2_CMD = 0x51
 SAT_IMG3_CMD = 0x52
 
+QUEUE_0 = 0x01
+QUEUE_1 = 0x01
+QUEUE_2 = 0x02
+
 # Heartbeat sequence
 HEARTBEAT_SEQ = [SAT_HEARTBEAT_BATT, SAT_HEARTBEAT_BATT, SAT_HEARTBEAT_SUN, SAT_HEARTBEAT_IMU, SAT_HEARTBEAT_BATT, SAT_HEARTBEAT_BATT, SAT_HEARTBEAT_SUN, SAT_HEARTBEAT_GPS]
 
@@ -45,20 +49,9 @@ REQ_ACK_NUM = 0x80
 class IMAGES:
     def __init__(self):
         # Image #1 declarations
-        self.image_1_CMD_ID = 0x50
-        self.image_1_UID = 0x0
-        self.image_1_size = 0
-        self.image_1_message_count = 0
-        # Image #2 declarations
-        self.image_2_CMD_ID = 0x51
-        self.image_2_UID = 0x0
-        self.image_2_size = 0
-        self.image_2_message_count = 0
-        # Image #3 declarations
-        self.image_3_CMD_ID = 0x52
-        self.image_3_UID = 0x0
-        self.image_3_size = 0
-        self.image_3_message_count = 0
+        self.image_UID = 0x0
+        self.image_size = 0
+        self.image_message_count = 0
 
 def construct_message(lora_tx_message_ID):
     """
