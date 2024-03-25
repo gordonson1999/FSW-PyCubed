@@ -17,7 +17,7 @@ import sys
 from pycubed import cubesat
 
 # Argus-1 Lib
-from argus_radio_helpers import *
+from argus_radio_protocol_cyclichb import *
 
 class SATELLITE_RADIO:
     '''
@@ -26,9 +26,16 @@ class SATELLITE_RADIO:
     '''
     def __init__(self):
         self.image_get_info()
+        self.send_mod = 10
         self.heartbeat_sent = False
         self.image_deleted = True
         self.last_image_id = 0x00
+
+        self.gs_req_ack = 0x0
+        self.gs_rx_message_ID = 0x0
+        self.gs_req_message_ID = 0x0
+        self.gs_req_seq_count = 0
+        self.sat_req_ack = 0x0
     
     '''
         Name: image_get_info
@@ -152,7 +159,8 @@ class SATELLITE_RADIO:
     '''
     def unpack_message(self,packet):
         # Can run deconstruct_message() for debug output 
-        self.rx_message_ID = int.from_bytes(packet[0:1],'big')
+        self.gs_req_ack = int.from_bytes(packet[0:1],'big') & 0b10000000
+        self.rx_message_ID = int.from_bytes(packet[0:1],'big') & 0b01111111
         self.rx_message_sequence_count = int.from_bytes(packet[1:3],'big')
         self.rx_message_size = int.from_bytes(packet[3:4],'big')
         print("Message received header:",list(packet[0:4]))
@@ -167,87 +175,110 @@ class SATELLITE_RADIO:
         Description: This function waits for a message to be received from the LoRa module
     '''
     def receive_message(self):
-        received_success = False
-        wait_time = 0
-        begin_time = time.time()
-
-        while not received_success:
-            my_packet = cubesat.radio1.receive()
-            if my_packet is None:
-                wait_time = time.time() - begin_time
-                if (wait_time >= 5):
-                    self.heartbeat_sent = False
-                    break
-            else:
-                print(f'Received (raw bytes): {my_packet}')
-                rssi = cubesat.radio1.rssi(raw=True)
-                print(f'Received signal strength: {rssi} dBm')
-                self.unpack_message(my_packet)
-                received_success = True
+        my_packet = cubesat.radio1.receive(timeout = 5)
+        if my_packet is None:
+            self.heartbeat_sent = False
+            self.gs_req_message_ID = 0x00
+        else:
+            print(f'Received (raw bytes): {my_packet}')
+            rssi = cubesat.radio1.rssi(raw=True)
+            print(f'Received signal strength: {rssi} dBm')
+            self.unpack_message(my_packet)
 
     '''
         Name: transmit_message
         Description: SAT transmits message via the LoRa module when the function is called.
     '''
     def transmit_message(self):
-        time.sleep(0.15)
+        send_multiple = True
+        multiple_packet_count = -1
+        target_sequence_count = 0
 
-        if not self.heartbeat_sent:
-            # Transmit SAT heartbeat
-            tx_message = construct_message(SAT_HEARTBEAT_BATT)
-            self.heartbeat_sent = True
+        while send_multiple:
+            time.sleep(0.15)
 
-        elif self.gs_req_message_ID == SAT_IMAGES:
-            # Transmit stored image info
-            tx_header = bytes([SAT_IMAGES,0x0,0x0,0x18])
-            tx_payload = self.image_pack_info()
-            tx_message = tx_header + tx_payload
+            # This code is practically the same as Ground Station function hold_receive_mode
+            if ((self.gs_req_message_ID == SAT_IMG1_CMD) or (self.gs_req_message_ID == SAT_IMG2_CMD) or (self.gs_req_message_ID == SAT_IMG3_CMD)):
+                if (self.gs_req_message_ID == SAT_IMG2_CMD):
+                    target_sequence_count = self.sat_images.image_2_message_count
+                elif (self.gs_req_message_ID == SAT_IMG3_CMD):
+                    target_sequence_count = self.sat_images.image_3_message_count
+                else:
+                    target_sequence_count = self.sat_images.image_1_message_count
 
-        elif self.gs_req_message_ID == SAT_DEL_IMG1:
-            # Transmit successful deletion of stored image 1
-            tx_header = bytes([SAT_DEL_IMG1,0x0,0x0,0x1])
-            tx_payload = bytes([0x1])
-            tx_message = tx_header + tx_payload
-            self.image_deleted = True
-        
-        elif self.gs_req_message_ID == SAT_DEL_IMG2:
-            # Transmit successful deletion of stored image 2
-            tx_header = bytes([SAT_DEL_IMG2,0x0,0x0,0x1])
-            tx_payload = bytes([0x1])
-            tx_message = tx_header + tx_payload
-            self.image_deleted = True
+                multiple_packet_count += 1
+                # print(self.gs_req_message_ID)
+                # print(((self.gs_req_seq_count + multiple_packet_count) % self.send_mod))
+                # print(target_sequence_count)
+                
+                if (((((self.gs_req_seq_count + multiple_packet_count) % self.send_mod) > 0) and ((self.gs_req_seq_count + multiple_packet_count) < (target_sequence_count - 1))) or \
+                    ((self.gs_req_seq_count + multiple_packet_count) == 0)):
+                    send_multiple = True
+                    self.sat_req_ack = 0x0
+                else:
+                    send_multiple = False
+                    self.sat_req_ack = REQ_ACK_NUM
+            else:
+                send_multiple = False
+                self.sat_req_ack = REQ_ACK_NUM
 
-        elif self.gs_req_message_ID == SAT_DEL_IMG3:
-            # Transmit successful deletion of stored image 3
-            tx_header = bytes([SAT_DEL_IMG3,0x0,0x0,0x1])
-            tx_payload = bytes([0x1])
-            tx_message = tx_header + tx_payload
-            self.image_deleted = True
+            if not self.heartbeat_sent:
+                # Transmit SAT heartbeat
+                # tx_header = [self.sat_req_ack | SAT_HEARTBEAT_BATT, 0x00, 0x01, 0x12]
+                tx_message = construct_message(SAT_HEARTBEAT_BATT)
+                self.heartbeat_sent = True
 
-        elif (self.gs_req_message_ID == SAT_IMG1_CMD) or (self.gs_req_message_ID == SAT_IMG2_CMD) or (self.gs_req_message_ID == SAT_IMG3_CMD):
-            # Transmit image in multiple packets
-            if (self.gs_req_message_ID != self.last_image_id) or (self.image_deleted):
-                self.image_pack_images(self.gs_req_message_ID)
-                self.image_deleted = False
+            elif self.gs_req_message_ID == SAT_IMAGES:
+                # Transmit stored image info
+                tx_header = bytes([(self.sat_req_ack | SAT_IMAGES),0x0,0x0,0x18])
+                tx_payload = self.image_pack_info()
+                tx_message = tx_header + tx_payload
 
-            # Header
-            tx_header = (self.gs_req_message_ID.to_bytes(1,'big') + self.gs_req_seq_count.to_bytes(2,'big') \
-                        + len(self.image_array[self.gs_req_seq_count]).to_bytes(1,'big'))
-            # Payload
-            tx_payload = self.image_array[self.gs_req_seq_count]
-            # Pack entire message
-            tx_message = tx_header + tx_payload
-            # Set last image tracker
-            self.last_image_id = self.gs_req_message_ID
+            elif self.gs_req_message_ID == SAT_DEL_IMG1:
+                # Transmit successful deletion of stored image 1
+                tx_header = bytes([(self.sat_req_ack | SAT_DEL_IMG1),0x0,0x0,0x1])
+                tx_payload = bytes([0x1])
+                tx_message = tx_header + tx_payload
+                self.image_deleted = True
+            
+            elif self.gs_req_message_ID == SAT_DEL_IMG2:
+                # Transmit successful deletion of stored image 2
+                tx_header = bytes([(self.sat_req_ack | SAT_DEL_IMG2),0x0,0x0,0x1])
+                tx_payload = bytes([0x1])
+                tx_message = tx_header + tx_payload
+                self.image_deleted = True
 
-        else:
-            # Run construct_message() when telemetry information is complete
-            tx_header = (self.gs_req_message_ID.to_bytes(1,'big') + (0x0).to_bytes(1,'big') + (0x0).to_bytes(1,'big') + (0x0).to_bytes(1,'big'))
-            tx_message = tx_header
+            elif self.gs_req_message_ID == SAT_DEL_IMG3:
+                # Transmit successful deletion of stored image 3
+                tx_header = bytes([(self.sat_req_ack | SAT_DEL_IMG3),0x0,0x0,0x1])
+                tx_payload = bytes([0x1])
+                tx_message = tx_header + tx_payload
+                self.image_deleted = True
 
-        # Send a message to GS
-        cubesat.radio1.send(tx_message)
+            elif (self.gs_req_message_ID == SAT_IMG1_CMD) or (self.gs_req_message_ID == SAT_IMG2_CMD) or (self.gs_req_message_ID == SAT_IMG3_CMD):
+                # Transmit image in multiple packets
+                if (self.gs_req_message_ID != self.last_image_id) or (self.image_deleted):
+                    self.image_pack_images(self.gs_req_message_ID)
+                    self.image_deleted = False
 
-        # Debug output of message in bytes
-        print("Satellite sent message:", tx_message)
-        print("\n")
+                # Header
+                tx_header = ((self.sat_req_ack | self.gs_req_message_ID).to_bytes(1,'big') + (self.gs_req_seq_count + multiple_packet_count).to_bytes(2,'big') \
+                            + len(self.image_array[self.gs_req_seq_count + multiple_packet_count]).to_bytes(1,'big'))
+                # Payload
+                tx_payload = self.image_array[self.gs_req_seq_count + multiple_packet_count]
+                # Pack entire message
+                tx_message = tx_header + tx_payload
+                # Set last image tracker
+                self.last_image_id = self.gs_req_message_ID
+
+            else:
+                # Run construct_message() when telemetry information is complete
+                tx_header = ((self.sat_req_ack | self.gs_req_message_ID).to_bytes(1,'big') + (0x0).to_bytes(1,'big') + (0x0).to_bytes(1,'big') + (0x0).to_bytes(1,'big'))
+                tx_message = tx_header
+
+            # Send a message to GS
+            cubesat.radio1.send(tx_message)
+
+            # Debug output of message in bytes
+            print("Satellite sent message!")
+            print("\n")

@@ -34,6 +34,12 @@ SAT_IMG1_CMD = 0x50
 SAT_IMG2_CMD = 0x51
 SAT_IMG3_CMD = 0x52
 
+# Heartbeat sequence
+HEARTBEAT_SEQ = [SAT_HEARTBEAT_BATT, SAT_HEARTBEAT_BATT, SAT_HEARTBEAT_SUN, SAT_HEARTBEAT_IMU, SAT_HEARTBEAT_BATT, SAT_HEARTBEAT_BATT, SAT_HEARTBEAT_SUN, SAT_HEARTBEAT_GPS]
+
+# Other constants
+REQ_ACK_NUM = 0x80
+
 class IMAGES:
     def __init__(self):
         # Image #1 declarations
@@ -64,7 +70,7 @@ def construct_message(lora_tx_message_ID):
 
     if(lora_tx_message_ID == SAT_HEARTBEAT_BATT):
         # Construct SAT heartbeat 
-        lora_tx_message = [SAT_HEARTBEAT_BATT, 0x00, 0x00, 0x12]
+        lora_tx_message = [REQ_ACK_NUM | SAT_HEARTBEAT_BATT, 0x00, 0x00, 0x12]
 
         # Generate LoRa payload for SAT heartbeat 
         # Add system status
@@ -82,9 +88,9 @@ def construct_message(lora_tx_message_ID):
         # Add time reference as uint32_t 
         lora_tx_message += [0x65, 0xF9, 0xE8, 0x4A]
 
-    else if(lora_tx_message_ID == SAT_HEARTBEAT_SUN):
+    elif(lora_tx_message_ID == SAT_HEARTBEAT_SUN):
         # Construct SAT heartbeat 
-        lora_tx_message = [SAT_HEARTBEAT_SUN, 0x00, 0x00, 0x12]
+        lora_tx_message = [REQ_ACK_NUM | SAT_HEARTBEAT_SUN, 0x00, 0x00, 0x12]
 
         # Generate LoRa payload for SAT heartbeat 
         # Add system status
@@ -102,9 +108,9 @@ def construct_message(lora_tx_message_ID):
         # Add time reference as uint32_t 
         lora_tx_message += [0x65, 0xF9, 0xE8, 0x4A]
 
-    else if(lora_tx_message_ID == SAT_HEARTBEAT_IMU):
+    elif(lora_tx_message_ID == SAT_HEARTBEAT_IMU):
         # Construct SAT heartbeat 
-        lora_tx_message = [SAT_HEARTBEAT_IMU, 0x00, 0x00, 0x2A]
+        lora_tx_message = [REQ_ACK_NUM | SAT_HEARTBEAT_IMU, 0x00, 0x00, 0x2A]
 
         # Generate LoRa payload for SAT heartbeat 
         # Add system status
@@ -140,9 +146,9 @@ def construct_message(lora_tx_message_ID):
         # Add time reference as uint32_t 
         lora_tx_message += [0x65, 0xF9, 0xE8, 0x4A]
 
-    else if(lora_tx_message_ID == SAT_HEARTBEAT_GPS):
+    elif(lora_tx_message_ID == SAT_HEARTBEAT_GPS):
         # Construct SAT heartbeat 
-        lora_tx_message = [SAT_HEARTBEAT_GPS, 0x00, 0x00, 0x36]
+        lora_tx_message = [REQ_ACK_NUM | SAT_HEARTBEAT_GPS, 0x00, 0x00, 0x36]
 
         # Generate LoRa payload for SAT heartbeat 
         # Add system status
@@ -197,7 +203,7 @@ def deconstruct_message(lora_rx_message):
     Deconstructs RX message based on message ID
     """
     # check RX message ID 
-    elif(lora_rx_message[0] == GS_ACK):
+    if(lora_rx_message[0] == GS_ACK):
         print("SAT: Received GS ack!")
         sq = (lora_rx_message[1] << 8) + lora_rx_message[2]
         print("SAT: Sequence Count:", sq)
