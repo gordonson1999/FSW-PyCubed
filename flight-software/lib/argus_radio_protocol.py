@@ -17,7 +17,10 @@ Authors: DJ Morvay, Akshat Sahay
 from pycubed import cubesat
 
 # Message ID definitions 
-SAT_HEARTBEAT = 0x01
+SAT_HEARTBEAT_BATT  = 0x00
+SAT_HEARTBEAT_SUN   = 0x01
+SAT_HEARTBEAT_IMU   = 0x02
+SAT_HEARTBEAT_GPS   = 0x03
 
 GS_ACK  = 0x08
 SAT_ACK = 0x09
@@ -30,6 +33,12 @@ SAT_DEL_IMG3 = 0x24
 SAT_IMG1_CMD = 0x50
 SAT_IMG2_CMD = 0x51
 SAT_IMG3_CMD = 0x52
+
+# Heartbeat sequence
+HEARTBEAT_SEQ = [SAT_HEARTBEAT_BATT, SAT_HEARTBEAT_BATT, SAT_HEARTBEAT_SUN, SAT_HEARTBEAT_IMU, SAT_HEARTBEAT_BATT, SAT_HEARTBEAT_BATT, SAT_HEARTBEAT_SUN, SAT_HEARTBEAT_GPS]
+
+# Other constants
+REQ_ACK_NUM = 0x80
 
 REQ_ACK_NUM = 0x80
 
@@ -61,51 +70,131 @@ def construct_message(lora_tx_message_ID):
     # LoRa header
     lora_tx_message = [0x00, 0x00, 0x00, 0x00] 
 
-    if(lora_tx_message_ID == SAT_HEARTBEAT):
+    if(lora_tx_message_ID == SAT_HEARTBEAT_BATT):
         # Construct SAT heartbeat 
-        lora_tx_message = [REQ_ACK_NUM | SAT_HEARTBEAT, 0x00, 0x01, 0x0F] 
+        lora_tx_message = [REQ_ACK_NUM | SAT_HEARTBEAT_BATT, 0x00, 0x00, 0x12]
 
         # Generate LoRa payload for SAT heartbeat 
         # Add system status
-        system_status = get_system_status()
-        lora_tx_message += system_status
+        lora_tx_message += [0x00, 0x00]
 
-        # Add satellite battery SOC
-        batt_soc = get_batt_soc()
-        lora_tx_message.append(batt_soc)
+        # Add battery SOCs, 1 byte for each battery 
+        lora_tx_message += [0x53, 0x51, 0x47, 0x61, 0x52, 0x51]
 
-        # Add satellite temperature 
-        temperature = get_temperature()
-        lora_tx_message.append(temperature)
+        # Add current as float
+        lora_tx_message += convert_fixed_point(891.18)
 
-        # Add satellite latitude 
-        sat_lat = get_lat()
-        lora_tx_message += sat_lat
+        # Add reboot count and payload status
+        lora_tx_message += [0x00, 0x00]
 
-        # Add satellite longitude  
-        sat_long = get_long()
-        lora_tx_message += sat_long
+        # Add time reference as uint32_t 
+        lora_tx_message += [0x65, 0xF9, 0xE8, 0x4A]
 
-        # Add no request from satellite 
-        lora_tx_message += [0x00, 0x00, 0x00]
+    elif(lora_tx_message_ID == SAT_HEARTBEAT_SUN):
+        # Construct SAT heartbeat 
+        lora_tx_message = [REQ_ACK_NUM | SAT_HEARTBEAT_SUN, 0x00, 0x00, 0x12]
 
-    elif(lora_tx_message_ID == GS_ACK):
-        # Construct GS acknowledgement 
-        lora_tx_message = [REQ_ACK_NUM | GS_ACK, 0x00, 0x01, 0x04] 
+        # Generate LoRa payload for SAT heartbeat 
+        # Add system status
+        lora_tx_message += [0x00, 0x00]
 
-        # Generate LoRa payload for GS acknowledgement  
-        # Add received message ID
-        prev_message_ID = get_prev_message_ID()
-        lora_tx_message.append(prev_message_ID)
+        # Add x-axis sun vector 
+        lora_tx_message += convert_fixed_point(1957.1957)
 
-        # Add received message ID
-        req_message_ID = get_req_message_ID()
-        lora_tx_message.append(req_message_ID)
+        # Add y-axis sun vector 
+        lora_tx_message += convert_fixed_point(1957.1957)
 
-        # Add received message ID
-        req_message_sq = get_req_message_sq()
-        lora_tx_message += req_message_sq
-    
+        # Add z-axis sun vector 
+        lora_tx_message += convert_fixed_point(1957.1957)
+
+        # Add time reference as uint32_t 
+        lora_tx_message += [0x65, 0xF9, 0xE8, 0x4A]
+
+    elif(lora_tx_message_ID == SAT_HEARTBEAT_IMU):
+        # Construct SAT heartbeat 
+        lora_tx_message = [REQ_ACK_NUM | SAT_HEARTBEAT_IMU, 0x00, 0x00, 0x2A]
+
+        # Generate LoRa payload for SAT heartbeat 
+        # Add system status
+        lora_tx_message += [0x00, 0x00]
+
+        # Add x-axis acceleration 
+        lora_tx_message += convert_fixed_point(1000.1)
+
+        # Add y-axis acceleration 
+        lora_tx_message += convert_fixed_point(1000.2)
+
+        # Add z-axis acceleration 
+        lora_tx_message += convert_fixed_point(1000.3)
+
+        # Add x-axis magnetometer value 
+        lora_tx_message += convert_fixed_point(1001.1)
+
+        # Add y-axis magnetometer value 
+        lora_tx_message += convert_fixed_point(1001.2)
+
+        # Add z-axis magnetometer value 
+        lora_tx_message += convert_fixed_point(1001.3)
+
+        # Add x-axis gyroscope value 
+        lora_tx_message += convert_fixed_point(1002.1)
+
+        # Add y-axis gyroscope value 
+        lora_tx_message += convert_fixed_point(1002.2)
+
+        # Add z-axis gyroscope value 
+        lora_tx_message += convert_fixed_point(1002.3)
+
+        # Add time reference as uint32_t 
+        lora_tx_message += [0x65, 0xF9, 0xE8, 0x4A]
+
+    elif(lora_tx_message_ID == SAT_HEARTBEAT_GPS):
+        # Construct SAT heartbeat 
+        lora_tx_message = [REQ_ACK_NUM | SAT_HEARTBEAT_GPS, 0x00, 0x00, 0x36]
+
+        # Generate LoRa payload for SAT heartbeat 
+        # Add system status
+        lora_tx_message += [0x00, 0x00]
+
+        # Add x-axis GPS ECEF position 
+        lora_tx_message += convert_fixed_point(2000.1)
+
+        # Add y-axis GPS ECEF position 
+        lora_tx_message += convert_fixed_point(2000.2)
+
+        # Add z-axis GPS ECEF position 
+        lora_tx_message += convert_fixed_point(2000.3)
+
+        # Add x-axis GPS ECEF SD position 
+        lora_tx_message += convert_fixed_point(2001.1)
+
+        # Add y-axis GPS ECEF SD position 
+        lora_tx_message += convert_fixed_point(2001.2)
+
+        # Add z-axis GPS ECEF SD position 
+        lora_tx_message += convert_fixed_point(2001.3)
+
+        # Add x-axis GPS ECEF velocity 
+        lora_tx_message += convert_fixed_point(2002.1)
+
+        # Add y-axis GPS ECEF velocity 
+        lora_tx_message += convert_fixed_point(2002.2)
+
+        # Add z-axis GPS ECEF velocity 
+        lora_tx_message += convert_fixed_point(2002.3)
+
+        # Add x-axis GPS ECEF SD velocity 
+        lora_tx_message += convert_fixed_point(2003.1)
+
+        # Add y-axis GPS ECEF SD velocity 
+        lora_tx_message += convert_fixed_point(2003.2)
+
+        # Add z-axis GPS ECEF SD velocity 
+        lora_tx_message += convert_fixed_point(2003.3)
+
+        # Add time reference as uint32_t 
+        lora_tx_message += [0x65, 0xF9, 0xE8, 0x4A]
+
     return bytes(lora_tx_message)
 
 def deconstruct_message(lora_rx_message):
@@ -116,24 +205,7 @@ def deconstruct_message(lora_rx_message):
     Deconstructs RX message based on message ID
     """
     # check RX message ID 
-    if(lora_rx_message[0] == SAT_HEARTBEAT):
-        # received satellite heartbeat, deconstruct header 
-        print("GS: Received SAT heartbeat!")
-        sq = (lora_rx_message[1] << 8) + lora_rx_message[2]
-        print("GS: Sequence Count:", sq)
-        print("GS: Message Length:", lora_rx_message[3])
-
-        # deconstruct message contents 
-        print("GS: Satellite system status:", lora_rx_message[4], lora_rx_message[5])
-        print("GS: Satellite battery SOC: " + str(lora_rx_message[6]) + "%")
-        print("GS: Satellite temperature: " + str(lora_rx_message[7]) + "*C")
-        sat_lat = convert_floating_point(lora_rx_message[8:12])
-        sat_long = convert_floating_point(lora_rx_message[12:16])
-        print("GS: Satellite is at: " + str(sat_lat) + ", " + str(sat_long))
-        sq = (lora_rx_message[17] << 8) + lora_rx_message[18]
-        print("GS: Satellite request: " + str(lora_rx_message[16]) + ", packet: " + str(sq))
-
-    elif(lora_rx_message[0] == GS_ACK):
+    if(lora_rx_message[0] == GS_ACK):
         print("SAT: Received GS ack!")
         sq = (lora_rx_message[1] << 8) + lora_rx_message[2]
         print("SAT: Sequence Count:", sq)
@@ -194,44 +266,3 @@ def convert_floating_point(message_list):
     if(neg_bit_flag == 1): val = -1 * val
 
     return val
-
-"""
-Dummy Low Level Interface Functions
-===================================
-Placeholders for FSW API to get information for telemetry
-Delete when this code is integrated with CircuitPython FSW / GS software 
-"""
-
-def get_system_status():
-    # Return system status
-    return [0x1F, 0xFF]
-
-def get_batt_soc():
-    # Return battery SOC % 
-    return 80
-
-def get_temperature():
-    # Return satellite temp in *C
-    return 16
-
-def get_lat(): 
-    # Return satellite latitude 
-    sat_lat = 40.445
-    return convert_fixed_point(sat_lat)
-
-def get_long():
-    # Return satellite longitude 
-    sat_long = -79.945278
-    return convert_fixed_point(sat_long)
-
-def get_prev_message_ID():
-    # Return the previous message received 
-    return 0x01
-
-def get_req_message_ID():
-    # Return requested message ID
-    return 0x01 
-
-def get_req_message_sq():
-    # Return requested message sequence count 
-    return [0x00, 0x001]
