@@ -338,10 +338,6 @@ class SATELLITE_RADIO:
                 # Run construct_message() when telemetry information is complete
                 tx_header = ((self.sat_req_ack | self.gs_req_message_ID).to_bytes(1,'big') + (0x0).to_bytes(1,'big') + (0x0).to_bytes(1,'big') + (0x0).to_bytes(1,'big'))
                 tx_message = tx_header
-            else:
-                # Run construct_message() when telemetry information is complete
-                tx_header = ((self.sat_req_ack | self.gs_req_message_ID).to_bytes(1,'big') + (0x0).to_bytes(1,'big') + (0x0).to_bytes(1,'big') + (0x0).to_bytes(1,'big'))
-                tx_message = tx_header
 
             # Send a message to GS
             cubesat.radio1.send(tx_message)
