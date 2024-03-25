@@ -17,7 +17,7 @@ import sys
 from pycubed import cubesat
 
 # Argus-1 Lib
-from argus_radio_protocol_cyclichb import *
+from argus_radio_protocol import *
 
 class SATELLITE_RADIO:
     '''
