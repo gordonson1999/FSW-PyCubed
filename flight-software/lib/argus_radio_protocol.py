@@ -44,8 +44,6 @@ HEARTBEAT_SEQ = [SAT_HEARTBEAT_BATT, SAT_HEARTBEAT_BATT, SAT_HEARTBEAT_SUN, SAT_
 # Other constants
 REQ_ACK_NUM = 0x80
 
-REQ_ACK_NUM = 0x80
-
 class IMAGES:
     def __init__(self):
         # Image #1 declarations
@@ -74,8 +72,8 @@ def construct_message(lora_tx_message_ID):
         # Add battery SOCs, 1 byte for each battery 
         lora_tx_message += [0x53, 0x51, 0x47, 0x61, 0x52, 0x51]
 
-        # Add current as float
-        lora_tx_message += convert_fixed_point(891.18)
+        # Add current as uint16_t
+        lora_tx_message += [0x03, 0x7B]
 
         # Add reboot count and payload status
         lora_tx_message += [0x00, 0x00]

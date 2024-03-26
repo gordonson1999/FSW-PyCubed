@@ -31,7 +31,6 @@ class SATELLITE_RADIO:
 
         self.image_get_info()
         self.send_mod = 10
-        self.send_mod = 10
         self.heartbeat_sent = False
         self.image_deleted = True
 
@@ -40,6 +39,9 @@ class SATELLITE_RADIO:
         self.gs_req_message_ID = 0x0
         self.gs_req_seq_count = 0
         self.sat_req_ack = 0x0
+
+        self.heartbeat_curr = 0
+        self.heartbeat_max  = len(HEARTBEAT_SEQ)
     
     '''
         Name: image_get_info
@@ -108,7 +110,12 @@ class SATELLITE_RADIO:
         self.rx_message_ID = int.from_bytes(packet[0:1],'big') & 0b01111111
         self.rx_message_sequence_count = int.from_bytes(packet[1:3],'big')
         self.rx_message_size = int.from_bytes(packet[3:4],'big')
-        print("Message received header:",list(packet[0:4]))
+        # print("Message received header:",list(packet[0:4]))
+
+        # Remove first bit from packet 
+        lora_rx_message = list(packet)
+        lora_rx_message[0] = lora_rx_message[0] & 0b01111111
+        deconstruct_message(lora_rx_message)
 
         if (self.rx_message_ID == GS_ACK):
             self.gs_rx_message_ID = int.from_bytes(packet[4:5],'big')
@@ -154,9 +161,6 @@ class SATELLITE_RADIO:
                 target_sequence_count = self.sat_images.image_message_count
 
                 multiple_packet_count += 1
-                # print(self.gs_req_message_ID)
-                # print(((self.gs_req_seq_count + multiple_packet_count) % self.send_mod))
-                # print(target_sequence_count)
                 
                 if (((((self.gs_req_seq_count + multiple_packet_count) % self.send_mod) > 0) and ((self.gs_req_seq_count + multiple_packet_count) < (target_sequence_count - 1))) or \
                     ((self.gs_req_seq_count + multiple_packet_count) == 0)):
@@ -171,19 +175,27 @@ class SATELLITE_RADIO:
 
             if not self.heartbeat_sent:
                 # Transmit SAT heartbeat
-                # tx_header = [self.sat_req_ack | SAT_HEARTBEAT_BATT, 0x00, 0x01, 0x12]
-                tx_message = construct_message(SAT_HEARTBEAT_BATT)
+                tx_message = construct_message(HEARTBEAT_SEQ[self.heartbeat_curr])
+
+                if(self.heartbeat_curr == 7):
+                    self.heartbeat_curr = 0
+                else:
+                    self.heartbeat_curr += 1
+
                 self.heartbeat_sent = True
+
             elif self.gs_req_message_ID == SAT_IMAGES:
                 # Transmit stored image info
                 tx_header = bytes([(self.sat_req_ack | SAT_IMAGES),0x0,0x0,0x18])
                 tx_payload = self.image_pack_info()
                 tx_message = tx_header + tx_payload
+
             elif self.gs_req_message_ID == SAT_DEL_IMG1:
                 # Transmit successful deletion of stored image 1
                 tx_header = bytes([(self.sat_req_ack | SAT_DEL_IMG1),0x0,0x0,0x1])
                 tx_payload = bytes([0x1])
                 tx_message = tx_header + tx_payload
+
             elif (self.gs_req_message_ID == SAT_IMG1_CMD):
                 # Transmit image in multiple packets
                 # Header
@@ -193,6 +205,7 @@ class SATELLITE_RADIO:
                 tx_payload = self.image_array[self.gs_req_seq_count + multiple_packet_count]
                 # Pack entire message
                 tx_message = tx_header + tx_payload
+
             else:
                 # Run construct_message() when telemetry information is complete
                 tx_header = ((self.sat_req_ack | self.gs_req_message_ID).to_bytes(1,'big') + (0x0).to_bytes(1,'big') + (0x0).to_bytes(1,'big') + (0x0).to_bytes(1,'big'))
@@ -202,5 +215,5 @@ class SATELLITE_RADIO:
             cubesat.radio1.send(tx_message)
 
             # Debug output of message in bytes
-            print("Satellite sent message!")
+            print("Satellite sent message with ID:", int.from_bytes(tx_message[0:1],'big') & 0b01111111)
             print("\n")
