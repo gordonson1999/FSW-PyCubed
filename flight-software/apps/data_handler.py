@@ -65,35 +65,34 @@ class DataHandler:
     # Keep track of all file processes
     data_process_registry = dict()
 
-    class DataHandler:
-        @classmethod
-        def scan_SD_card(cls):
-            """
-            Scans the SD card for configuration files and registers data processes.
+    @classmethod
+    def scan_SD_card(cls):
+        """
+        Scans the SD card for configuration files and registers data processes.
 
-            This method scans the SD card for directories and checks if each directory contains a configuration file.
-            If a configuration file is found, it reads the data format and line limit from the file and registers
-            a data process with the specified parameters.
+        This method scans the SD card for directories and checks if each directory contains a configuration file.
+        If a configuration file is found, it reads the data format and line limit from the file and registers
+        a data process with the specified parameters.
 
-            Returns:
-                None
+        Returns:
+            None
 
-            Example:
-                DataHandler.scan_SD_card()
-            """
-            directories = cls.list_directories()
-            print(directories)
-            for dir_name in directories:
-                config_file = join_path(cls.sd_path, dir_name, _PROCESS_CONFIG_FILENAME)
-                if path_exist(config_file):
-                    with open(config_file, 'r') as f:
-                        config_data = json.load(f)
-                        data_format = config_data['data_format']
-                        line_limit = config_data['line_limit']
-                        if data_format and line_limit:
-                            cls.register_data_process(dir_name, data_format, persistent=True, line_limit=line_limit)
+        Example:
+            DataHandler.scan_SD_card()
+        """
+        directories = cls.list_directories()
+        print(directories)
+        for dir_name in directories:
+            config_file = join_path(cls.sd_path, dir_name, _PROCESS_CONFIG_FILENAME)
+            if path_exist(config_file):
+                with open(config_file, 'r') as f:
+                    config_data = json.load(f)
+                    data_format = config_data['data_format']
+                    line_limit = config_data['line_limit']
+                    if data_format and line_limit:
+                        cls.register_data_process(dir_name, data_format, persistent=True, line_limit=line_limit)
 
-            print("SD Card Scanning complete - found ", cls.data_process_registry.keys())
+        # print("SD Card Scanning complete - found ", cls.data_process_registry.keys())
 
 
     @classmethod
@@ -248,6 +247,7 @@ class DataHandler:
         except Exception as e:
             print(f"Error deleting files and directories: {e}")
 
+    @classmethod
     def get_current_file_size(cls, tag_name):
         try:
             if tag_name in cls.data_process_registry:
@@ -339,7 +339,6 @@ class DataProcess:
                 self.excluded_paths = [] # Paths that are currently being transmitted
 
                 config_file_path = self.dir_path + _PROCESS_CONFIG_FILENAME
-
                 if not path_exist(config_file_path) or new_config_file:
                     config_data = {
                         'data_format': self.data_format[1:], # remove the < character
@@ -357,7 +356,9 @@ class DataProcess:
             except OSError as e:
                 print(f"Error creating folder: {e}")
         else:
+            # TODO log
             print("Folder already exists.")
+
 
         
 
@@ -432,7 +433,7 @@ class DataProcess:
 
     def open(self):
         if self.status == _CLOSED:
-            self.file = open(self.current_path, "ab")
+            self.file = open(self.current_path, "ab+")
             self.status = _OPEN
         else:
             print("File is already open.")
@@ -456,7 +457,6 @@ class DataProcess:
         # Assumes correct ordering (monotonic timestamp)
         # TODO
         files = os.listdir(self.dir_path)
-        print(files)
         if len(files) > 1: # Ignore process configuration file
 
             if latest:
@@ -486,7 +486,6 @@ class DataProcess:
         The file is then removed from the excluded list and added to the deletion list.
         """
         if path in self.excluded_paths:
-            #os.remove(path)
             self.excluded_paths.remove(path)
             self.delete_paths.append(path) 
             # TODO handle case where comms transmitted a file it wasn't suposed to? 
@@ -525,6 +524,7 @@ class DataProcess:
 
 
     def get_current_file_size(self):
+        
         if path_exist(self.current_path):
             try:
                 file_stats = os.stat(self.current_path)
@@ -562,16 +562,21 @@ class DataProcess:
 class ImageProcess:
     pass
 
-def path_exist(filename):
+
+
+def path_exist(path):
     """
-    Replacement for os.path.exists() function, which is not implemented in micropython.
+    Replacement for os.path.exists() function, which is not implemented in micropython. If the request if for a directory, the function will return True if the directory exists, even if it is empty.
     """
+    try_path = path
+    if path[-1] == '/':
+        try_path = path[:-1]
+
     try:
-        os.stat(filename)
-        #print("Path exists!")
+        os.stat(try_path)
         return True
-    except OSError:
-        #print("Path does not exist!")
+    except OSError as e:
+        print(f"Error: {e}")
         return False
 
 def join_path(*paths):

@@ -14,7 +14,7 @@ from state_manager import state_manager
 try:
     # Run forever
     #state_manager.start('NOMINAL')
-    import file_t
+    import obdh_sd_test
 except Exception as e:
     print(e)
     # TODO Log the error
