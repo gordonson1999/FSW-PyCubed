@@ -12,13 +12,10 @@ from state_manager import state_manager
 
 
 try:
-    # should run forever
+    # Run forever
     #state_manager.start('NOMINAL')
     import file_t
 except Exception as e:
     print(e)
-
-
-
-#import file_sd_test
+    # TODO Log the error
 

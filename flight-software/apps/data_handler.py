@@ -1,16 +1,23 @@
 """
-Onboard Mass Storage System (SD Card) Interface
+Onboard Data Handling (OBDH) Module 
+
 ======================
-Python package to interface with the onboard mass storage system (SD Card). 
-It is the single point of access to the SD Card for the flight software.
+
+This module provides the main interface for the onboard data handling system consisting of:
+- Persistent storage management and single point of access for the onboard mass storage system (SD Card)
+- Logging interface for flight software tasks
+- Automated file services for the flight software, including telemetry (TM) and telecommand (TC) file generation for transmission
+- Data processing and formatting for the flight software
 
 Author: Ibrahima Sory Sow
 """
 
-import sys
 import os
+import re
 import struct
 import time
+import json
+
 
 from storage import mount, VfsFat
 import sdcardio
@@ -38,7 +45,10 @@ _FORMAT = {
         }
 
 
+_PROCESS_CONFIG_FILENAME = ".process_configuration.json"
+
 from collections import OrderedDict
+
 
 
 
@@ -56,13 +66,25 @@ class DataHandler:
         self.sd_path = sd_path
         # Keep track of all file processes
         self.data_process_registry = dict()
-        # TODO Scan the SD card to register existing file processes
-        self.scan_sd_card()
+        # Scan the SD card to register existing file processes
+        self.scan_SD_card()
 
 
-    def scan_sd_card(self):
-        # TODO
-        pass
+    def scan_SD_card(self):
+        directories = self.list_directories()
+        print(directories)
+        for dir_name in directories:
+            config_file = join_path(self.sd_path, dir_name, _PROCESS_CONFIG_FILENAME)
+            if path_exist(config_file):
+                with open(config_file, 'r') as f:
+                    config_data = json.load(f)
+                    data_format = config_data['data_format']
+                    line_limit = config_data['line_limit']
+                    if data_format and line_limit:
+                        self.register_data_process(dir_name, data_format, persistent=True, line_limit=line_limit)
+
+        print("SD Card Scanning complete - found ", self.data_process_registry.keys())
+
 
     def register_data_process(self, tag_name, data_format, persistent, line_limit=1000):
         """
@@ -258,7 +280,7 @@ class DataProcess:
         bytesize (int): The size of each new data line to be written to the file.
     """
 
-    def __init__(self, tag_name, data_format, persistent=True, line_limit=1000, home_path="/sd") -> None:
+    def __init__(self, tag_name, data_format, persistent=True, line_limit=1000, new_config_file=False, home_path="/sd") -> None:
             """
             Initializes a DataProcess object.
 
@@ -278,7 +300,7 @@ class DataProcess:
             self.data_format = '<' +  data_format # Need to specify endianness to disable padding (https://stackoverflow.com/questions/47750056/python-struct-unpack-length-error/47750278#47750278)
             self.bytesize = self.compute_bytesize(self.data_format)
 
-            self.last_data = None
+            self.last_data = {}
 
 
             if self.persistent:
@@ -296,7 +318,15 @@ class DataProcess:
                 self.delete_paths = [] # Paths that are flagged for deletion
                 self.excluded_paths = [] # Paths that are currently being transmitted
 
-                self.tm_filename = None
+                config_file_path = self.dir_path + _PROCESS_CONFIG_FILENAME
+
+                if not path_exist(config_file_path) or new_config_file:
+                    config_data = {
+                        'data_format': self.data_format[1:], # remove the < character
+                        'line_limit': line_limit
+                    }
+                    with open(config_file_path, 'w') as config_file:
+                        json.dump(config_data, config_file)
 
 
     def create_folder(self):
@@ -308,6 +338,8 @@ class DataProcess:
                 print(f"Error creating folder: {e}")
         else:
             print("Folder already exists.")
+
+        
 
 
     def compute_bytesize(self, data_format):
@@ -404,14 +436,20 @@ class DataProcess:
         # Assumes correct ordering (monotonic timestamp)
         # TODO
         files = os.listdir(self.dir_path)
-
-        if len(files) > 0:
+        print(files)
+        if len(files) > 1: # Ignore process configuration file
 
             if latest:
-                tm_path = self.dir_path + files[-1]
+                transmit_file = files[-1]
+                if transmit_file == _PROCESS_CONFIG_FILENAME:
+                    transmit_file = files[-2]
             else:
-                tm_path = self.dir_path + files[0]
-            
+                transmit_file = files[0]
+                if transmit_file == _PROCESS_CONFIG_FILENAME:
+                    transmit_file = files[1]
+                
+            tm_path = self.dir_path + transmit_file
+
             if tm_path == self.current_path:
                 self.close()
                 self.resolve_current_file()
@@ -441,7 +479,6 @@ class DataProcess:
         """
         Clean up the files that have been transmitted and acknowledged.
         """
-        print("in cleanup", self.delete_paths)
         for d_path in self.delete_paths:
             if path_exist(d_path):
                 os.remove(d_path)
@@ -517,6 +554,14 @@ def path_exist(filename):
         #print("Path does not exist!")
         return False
 
-    
-    
+def join_path(*paths):
+    """
+    Join multiple paths together into a single path.
 
+    Args:
+        *paths: Variable number of paths to be joined.
+
+    Returns:
+        The joined path.
+    """
+    return re.sub(r'/+', '/', '/'.join(paths))

@@ -2,6 +2,8 @@ import time
 import board, microcontroller
 import random
 from collections import OrderedDict
+import time
+
 
 from apps.data_handler import DataHandler
 
@@ -9,7 +11,7 @@ from apps.data_handler import DataHandler
 fm = DataHandler()
 
 # Just for debug purposes - need initial SD card scan 
-fm.delete_all_files()
+#fm.delete_all_files()
 
 
 print("SD Card Directories: ", fm.list_directories())
@@ -52,7 +54,7 @@ while False:
     if i > MAX_STEP:
         break
 
-import time
+# test clean-up
 
 log_data = OrderedDict({'time': time.time(), 'a_status': rb(), 'b_status': rb(), 'c_status': rb(), 'd_status': rb()})
 fm.log_data("log", *log_data.values())

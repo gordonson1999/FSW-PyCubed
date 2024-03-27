@@ -1,6 +1,6 @@
 
 import os
-import apps.lib.tasko as tasko
+import apps.tasko as tasko
 
 
 
