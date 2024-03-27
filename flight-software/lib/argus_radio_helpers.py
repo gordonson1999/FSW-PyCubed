@@ -137,7 +137,7 @@ class SATELLITE_RADIO:
             self.gs_req_message_ID = SAT_OTA_RES
 
             if (self.ota_sequence_count == self.rx_message_sequence_count):
-                self.ota_array.append(packet[6:(self.rx_message_size - 2)])
+                self.ota_array.append(packet[6:(6 + (self.rx_message_size - 2))])
                 self.ota_sequence_count += 1
                 self.ota_rec_success = 1
             elif (self.ota_sequence_count > self.rx_message_sequence_count):
