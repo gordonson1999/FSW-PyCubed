@@ -1,8 +1,5 @@
 
-import os
 import apps.tasko as tasko
-
-
 
 
 class StateManager:

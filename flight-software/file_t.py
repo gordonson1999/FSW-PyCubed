@@ -5,25 +5,25 @@ from collections import OrderedDict
 import time
 
 
-from apps.data_handler import DataHandler
+from apps.data_handler import DataHandler as DH
 
 
-fm = DataHandler()
+dh = DH()
 
 # Just for debug purposes - need initial SD card scan 
-#fm.delete_all_files()
+#dh.delete_all_files()
 
 
-print("SD Card Directories: ", fm.list_directories())
-fm.register_data_process("log", "fBBBB", True, line_limit=20)
-fm.register_data_process("imu", "ffff", True, line_limit=10)
-print("SD Card Directories: ", fm.list_directories())
+print("SD Card Directories: ", dh.list_directories())
+dh.register_data_process("log", "fBBBB", True, line_limit=20)
+dh.register_data_process("imu", "ffff", True, line_limit=10)
+print("SD Card Directories: ", dh.list_directories())
 
 
 i = 0
 MAX_STEP = 10
 
-fm.print_directory()
+dh.print_directory()
 
 # To generate random boolean
 rb = lambda : random.getrandbits(1)
@@ -37,15 +37,15 @@ while False:
     
     # Create fake data according to the specified formatting
     log_data = OrderedDict({'time': time.time(), 'a_status': rb(), 'b_status': rb(), 'c_status': rb(), 'd_status': rb()})
-    fm.log_data("log", *log_data.values())
+    dh.log_data("log", *log_data.values())
 
     imu_data = OrderedDict({'time': time.time(), 'gyro': random.random(), 'acc': random.random(), 'mag': random.random()})
-    fm.log_data("imu", *imu_data.values())
+    dh.log_data("imu", *imu_data.values())
 
-    print("Current file size log: ", fm.get_current_file_size('log'))
-    print("Current file size imu: ", fm.get_current_file_size('imu'))
+    print("Current file size log: ", dh.get_current_file_size('log'))
+    print("Current file size imu: ", dh.get_current_file_size('imu'))
     
-    print("latest imu: ", fm.get_latest_data("imu"))
+    print("latest imu: ", dh.get_latest_data("imu"))
 
     time.sleep(1)
 
@@ -57,35 +57,35 @@ while False:
 # test clean-up
 
 log_data = OrderedDict({'time': time.time(), 'a_status': rb(), 'b_status': rb(), 'c_status': rb(), 'd_status': rb()})
-fm.log_data("log", *log_data.values())
-fm.log_data("log", *log_data.values())
-fm.log_data("log", *log_data.values())
-fm.log_data("log", *log_data.values())
+dh.log_data("log", *log_data.values())
+dh.log_data("log", *log_data.values())
+dh.log_data("log", *log_data.values())
+dh.log_data("log", *log_data.values())
 time.sleep(2)
 
-path = fm.request_TM_path("log")
+path = dh.request_TM_path("log")
 
-print("Exclusion list: ", fm.data_process_registry["log"].excluded_paths)
+print("Exclusion list: ", dh.data_process_registry["log"].excluded_paths)
 
-fm.log_data("log", *log_data.values())
+dh.log_data("log", *log_data.values())
 
-fm.notify_TM_path("log", path)
-print("Deletion list: ", fm.data_process_registry["log"].delete_paths)
+dh.notify_TM_path("log", path)
+print("Deletion list: ", dh.data_process_registry["log"].delete_paths)
 
-fm.log_data("log", *log_data.values())
+dh.log_data("log", *log_data.values())
 
-fm.print_directory()
+dh.print_directory()
 
-fm.clean_up()
-fm.log_data("log", *log_data.values())
+dh.clean_up()
+dh.log_data("log", *log_data.values())
 
 
-print("Current file size log: ", fm.get_current_file_size('log'))
+print("Current file size log: ", dh.get_current_file_size('log'))
 
 
 print("SD directories and files...")
 
-fm.print_directory()
+dh.print_directory()
 
 print("FINISHED.")
 

@@ -61,32 +61,43 @@ class DataHandler:
     Failure to do so can prevent the SD card from being recognized until it is powered off or re-inserted.       
     """
 
-    def __init__(self, sd_path="/sd"):
+    sd_path = "/sd"
+    # Keep track of all file processes
+    data_process_registry = dict()
 
-        self.sd_path = sd_path
-        # Keep track of all file processes
-        self.data_process_registry = dict()
-        # Scan the SD card to register existing file processes
-        self.scan_SD_card()
+    class DataHandler:
+        @classmethod
+        def scan_SD_card(cls):
+            """
+            Scans the SD card for configuration files and registers data processes.
+
+            This method scans the SD card for directories and checks if each directory contains a configuration file.
+            If a configuration file is found, it reads the data format and line limit from the file and registers
+            a data process with the specified parameters.
+
+            Returns:
+                None
+
+            Example:
+                DataHandler.scan_SD_card()
+            """
+            directories = cls.list_directories()
+            print(directories)
+            for dir_name in directories:
+                config_file = join_path(cls.sd_path, dir_name, _PROCESS_CONFIG_FILENAME)
+                if path_exist(config_file):
+                    with open(config_file, 'r') as f:
+                        config_data = json.load(f)
+                        data_format = config_data['data_format']
+                        line_limit = config_data['line_limit']
+                        if data_format and line_limit:
+                            cls.register_data_process(dir_name, data_format, persistent=True, line_limit=line_limit)
+
+            print("SD Card Scanning complete - found ", cls.data_process_registry.keys())
 
 
-    def scan_SD_card(self):
-        directories = self.list_directories()
-        print(directories)
-        for dir_name in directories:
-            config_file = join_path(self.sd_path, dir_name, _PROCESS_CONFIG_FILENAME)
-            if path_exist(config_file):
-                with open(config_file, 'r') as f:
-                    config_data = json.load(f)
-                    data_format = config_data['data_format']
-                    line_limit = config_data['line_limit']
-                    if data_format and line_limit:
-                        self.register_data_process(dir_name, data_format, persistent=True, line_limit=line_limit)
-
-        print("SD Card Scanning complete - found ", self.data_process_registry.keys())
-
-
-    def register_data_process(self, tag_name, data_format, persistent, line_limit=1000):
+    @classmethod
+    def register_data_process(cls, tag_name, data_format, persistent, line_limit=1000):
         """
         Register a data process with the given parameters.
 
@@ -103,13 +114,13 @@ class DataHandler:
         - None
         """
         if isinstance(line_limit, int) and line_limit > 0:
-            self.data_process_registry[tag_name] = DataProcess(tag_name, data_format, persistent=persistent, line_limit=line_limit)
+            cls.data_process_registry[tag_name] = DataProcess(tag_name, data_format, persistent=persistent, line_limit=line_limit)
         else:
             raise ValueError("Line limit must be a positive integer.")
 
 
-
-    def log_data(self, tag_name, *data):
+    @classmethod
+    def log_data(cls, tag_name, *data):
         """
         Logs the provided data using the specified tag name.
 
@@ -124,14 +135,15 @@ class DataHandler:
         - None
         """
         try:
-            if tag_name in self.data_process_registry:
-                self.data_process_registry[tag_name].log(*data)
+            if tag_name in cls.data_process_registry:
+                cls.data_process_registry[tag_name].log(*data)
             else:
                 raise KeyError("Data process not registered!")
         except KeyError as e:
             print(f"Error: {e}")
 
-    def get_latest_data(self, tag_name):
+    @classmethod
+    def get_latest_data(cls, tag_name):
         """
         Returns the latest data point for the specified data process.
 
@@ -145,39 +157,45 @@ class DataHandler:
         - The latest data point for the specified data process.
         """
         try:
-            if tag_name in self.data_process_registry:
-                return self.data_process_registry[tag_name].get_latest_data()
+            if tag_name in cls.data_process_registry:
+                return cls.data_process_registry[tag_name].get_latest_data()
             else:
                 raise KeyError("Data process not registered!")
         except KeyError as e:
             print(f"Error: {e}")
 
 
-    def list_directories(self):
-        return os.listdir(self.sd_path)
+    @classmethod
+    def list_directories(cls):
+        return os.listdir(cls.sd_path)
 
 
     # DEBUG ONLY
-    def get_data_process(self, tag_name):
-        return self.data_process_registry[tag_name]
+    @classmethod
+    def get_data_process(cls, tag_name):
+        return cls.data_process_registry[tag_name]
     
-    def get_all_data_processes_name(self):
-        return self.data_process_registry.keys()
+    @classmethod
+    def get_all_data_processes_name(cls):
+        return cls.data_process_registry.keys()
     
     # DEBUG ONLY
-    def get_all_data_processes(self):
-        return self.data_process_registry.values()
+    @classmethod
+    def get_all_data_processes(cls):
+        return cls.data_process_registry.values()
     
-    def get_storage_info(self, tag_name):
+    @classmethod
+    def get_storage_info(cls, tag_name):
         try:
-            if tag_name in self.data_process_registry:
-                self.data_process_registry[tag_name].get_storage_info()
+            if tag_name in cls.data_process_registry:
+                cls.data_process_registry[tag_name].get_storage_info()
             else:
                 raise KeyError("File process not registered.")
         except KeyError as e:
             print(f"Error: {e}")
 
-    def request_TM_path(self, tag_name, latest=False):
+    @classmethod
+    def request_TM_path(cls, tag_name, latest=False):
         """
         Returns the path of a designated file available for transmission. 
         If no file is available, the function returns None.
@@ -186,33 +204,34 @@ class DataHandler:
         Once fully transmitted, notify_TM_path() must be called to remove the file from the exclusion list.
         """
         try:
-            if tag_name in self.data_process_registry:
-                return self.data_process_registry[tag_name].request_TM_path(latest=latest)
+            if tag_name in cls.data_process_registry:
+                return cls.data_process_registry[tag_name].request_TM_path(latest=latest)
             else:
                 raise KeyError("Data  process not registered!")
         except KeyError as e:
             print(f"Error: {e}")
     
-
-    def notify_TM_path(self, tag_name, path): 
+    @classmethod
+    def notify_TM_path(cls, tag_name, path): 
         """
         Acknowledge the transmission of the file. 
         The file is then removed from the exclusion list.
         """
         try:
-            if tag_name in self.data_process_registry:
-                self.data_process_registry[tag_name].notify_TM_path(path)
+            if tag_name in cls.data_process_registry:
+                cls.data_process_registry[tag_name].notify_TM_path(path)
             else:
                 raise KeyError("Data process not registered!")
         except KeyError as e:
             print(f"Error: {e}")
 
-    def clean_up(self):
+    @classmethod
+    def clean_up(cls):
         """
         Clean up the files that have been transmitted and acknowledged.
         """
-        for tag_name in self.data_process_registry:
-            self.data_process_registry[tag_name].clean_up()
+        for tag_name in cls.data_process_registry:
+            cls.data_process_registry[tag_name].clean_up()
 
 
     @classmethod
@@ -240,7 +259,8 @@ class DataHandler:
 
             
     # DEBUG ONLY
-    def print_directory(self, path="/sd", tabs=0):
+    @classmethod
+    def print_directory(cls, path="/sd", tabs=0):
         for file in os.listdir(path):
             stats = os.stat(path + "/" + file)
             filesize = stats[6]
@@ -260,7 +280,7 @@ class DataHandler:
             print('{0:<40} Size: {1:>10}'.format(printname, sizestr))
             # recursively print directory contents
             if isdir:
-                self.print_directory(path + "/" + file, tabs + 1)
+                cls.print_directory(path + "/" + file, tabs + 1)
 
 
 
