@@ -42,6 +42,9 @@ class SATELLITE_RADIO:
 
         self.heartbeat_curr = 0
         self.heartbeat_max  = len(HEARTBEAT_SEQ)
+
+        self.ota_array = []
+        self.ota_sequence_count = 0
     
     '''
         Name: image_get_info
@@ -129,20 +132,57 @@ class SATELLITE_RADIO:
                     self.image_num = 0
                 self.image_get_info()
         
+        if (self.rx_message_ID == GS_OTA_REQ):
+            packets_remaining = int.from_bytes(packet[4:6],'big')
+            self.gs_req_message_ID = SAT_OTA_RES
+
+            if (self.ota_sequence_count == self.rx_message_sequence_count):
+                self.ota_array.append(packet[6:(self.rx_message_size - 2)])
+                self.ota_sequence_count += 1
+                self.ota_rec_success = 1
+            elif (self.ota_sequence_count > self.rx_message_sequence_count):
+                while (self.ota_sequence_count > self.rx_message_sequence_count):
+                    self.ota_sequence_count -= 1
+                    self.ota_array.pop(self.ota_sequence_count)
+
+                self.ota_array.append(packet[6:(self.rx_message_size - 2)])
+                self.ota_sequence_count += 1
+                self.ota_rec_success = 1
+            else:
+                self.ota_rec_success = 0
+
+            if ((packets_remaining <= 0) and (self.ota_rec_success == 1)):
+                # Create file name
+                filename = f"/sd/IMAGES/OTA_SIM.jpg"
+
+                rec_bytes = open(filename,'wb')
+                
+                for i in range(self.rx_message_sequence_count + 1):
+                    rec_bytes.write(self.ota_array[i])         
+
+                rec_bytes.close()
+
+                print(f'OTA file successfully uplinked!')
+                self.ota_array.clear()
+                self.ota_sequence_count = 0
+        
     '''
         Name: received_message
         Description: This function waits for a message to be received from the LoRa module
     '''
     def receive_message(self):
-        my_packet = cubesat.radio1.receive(timeout = 5)
-        if my_packet is None:
-            self.heartbeat_sent = False
-            self.gs_req_message_ID = 0x00
-        else:
-            print(f'Received (raw bytes): {my_packet}')
-            rssi = cubesat.radio1.rssi(raw=True)
-            print(f'Received signal strength: {rssi} dBm')
-            self.unpack_message(my_packet)
+        while (self.gs_req_ack == 0):
+            my_packet = cubesat.radio1.receive(timeout = 5)
+            if my_packet is None:
+                self.heartbeat_sent = False
+                self.gs_req_message_ID = 0x00
+                self.gs_req_ack = 1
+            else:
+                print(f'Received (raw bytes): {my_packet}')
+                rssi = cubesat.radio1.rssi(raw=True)
+                print(f'Received signal strength: {rssi} dBm')
+                self.unpack_message(my_packet)
+        self.gs_req_ack = 0
 
     '''
         Name: transmit_message
@@ -155,7 +195,6 @@ class SATELLITE_RADIO:
 
         while send_multiple:
             time.sleep(0.15)
-
             # This code is practically the same as Ground Station function hold_receive_mode
             if (self.gs_req_message_ID == SAT_IMG1_CMD):
                 target_sequence_count = self.sat_images.image_message_count
@@ -183,19 +222,16 @@ class SATELLITE_RADIO:
                     self.heartbeat_curr += 1
 
                 self.heartbeat_sent = True
-
             elif self.gs_req_message_ID == SAT_IMAGES:
                 # Transmit stored image info
                 tx_header = bytes([(self.sat_req_ack | SAT_IMAGES),0x0,0x0,0x18])
                 tx_payload = self.image_pack_info()
                 tx_message = tx_header + tx_payload
-
             elif self.gs_req_message_ID == SAT_DEL_IMG1:
                 # Transmit successful deletion of stored image 1
                 tx_header = bytes([(self.sat_req_ack | SAT_DEL_IMG1),0x0,0x0,0x1])
                 tx_payload = bytes([0x1])
                 tx_message = tx_header + tx_payload
-
             elif (self.gs_req_message_ID == SAT_IMG1_CMD):
                 # Transmit image in multiple packets
                 # Header
@@ -205,11 +241,14 @@ class SATELLITE_RADIO:
                 tx_payload = self.image_array[self.gs_req_seq_count + multiple_packet_count]
                 # Pack entire message
                 tx_message = tx_header + tx_payload
-
+            elif (self.gs_req_message_ID == SAT_OTA_RES):
+                # Transmit response to OTA update
+                tx_header = bytes([(self.sat_req_ack | SAT_OTA_RES),0x0,0x0,0x3])
+                tx_payload = (self.ota_rec_success.to_bytes(1,'big') + self.ota_sequence_count.to_bytes(2,'big'))
+                tx_message = tx_header + tx_payload
             else:
                 # Run construct_message() when telemetry information is complete
-                tx_header = ((self.sat_req_ack | self.gs_req_message_ID).to_bytes(1,'big') + (0x0).to_bytes(1,'big') + (0x0).to_bytes(1,'big') + (0x0).to_bytes(1,'big'))
-                tx_message = tx_header
+                tx_message = construct_message(self.gs_req_message_ID)
 
             # Send a message to GS
             cubesat.radio1.send(tx_message)
