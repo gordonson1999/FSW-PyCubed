@@ -65,6 +65,8 @@ class StateManager:
 
         # TODO transition functions
 
+        
+
 
         ## Scheduling 
 
@@ -86,10 +88,14 @@ class StateManager:
 
             self.scheduled_tasks[task_name] = schedule(
                 frequency, task_fn, priority)
+            
+
+        print(f'Switched to state {new_state}')
+
 
 
     def stop_all_tasks(self):
-        for task in self.scheduled_tasks:
+        for name, task in self.scheduled_tasks.items():
             task.stop()
 
     def query_global_state(self):

@@ -81,7 +81,6 @@ class DataHandler:
             DataHandler.scan_SD_card()
         """
         directories = cls.list_directories()
-        print(directories)
         for dir_name in directories:
             config_file = join_path(cls.sd_path, dir_name, _PROCESS_CONFIG_FILENAME)
             if path_exist(config_file):
@@ -192,6 +191,12 @@ class DataHandler:
                 raise KeyError("File process not registered.")
         except KeyError as e:
             print(f"Error: {e}")
+
+
+    @classmethod
+    def data_process_exists(cls, tag_name):
+        return tag_name in cls.data_process_registry
+
 
     @classmethod
     def request_TM_path(cls, tag_name, latest=False):
@@ -329,6 +334,7 @@ class DataProcess:
 
                 self.dir_path = home_path + '/' + tag_name + '/'
                 self.create_folder()
+                
 
                 # To Be Resolved for each file process, TODO check if int, positive, etc
                 self.size_limit = line_limit * self.bytesize  # Default size limit is 1000 data lines
@@ -576,7 +582,7 @@ def path_exist(path):
         os.stat(try_path)
         return True
     except OSError as e:
-        print(f"Error: {e}")
+        print(f"{e} - {try_path} doesn't exist")
         return False
 
 def join_path(*paths):

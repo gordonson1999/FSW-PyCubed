@@ -26,10 +26,8 @@ class DebugTask:
         :param level: > 1 will print as a sub-level
 
         """
-        if level==1:
-            print(f'[{self.name:>30}] {msg}')
-        else:
-            print(f'\t   └── {msg}')
+        print(f'[{self.ID}][{self.name}] Error: {msg}')
+
             
 
     async def main_task(self, *args, **kwargs):
@@ -50,4 +48,7 @@ class DebugTask:
         try:
             await self.main_task()
         except Exception as e:
-            await self.handle_error(e)
+            # TODO change this to comply with the logging system of the framework
+            self.debug(f'{e}')
+
+    
