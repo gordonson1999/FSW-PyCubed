@@ -1,8 +1,8 @@
 import os
 import shutil
 import filecmp
-import sys
 import argparse
+
 
 def copy_folder(source_folder, destination_folder, show_identical_files=True):
     for root, dirs, files in os.walk(source_folder):
@@ -24,6 +24,18 @@ def copy_folder(source_folder, destination_folder, show_identical_files=True):
                 else:
                     shutil.copy2(source_path, destination_path)
                     print(f"Overwrote {destination_path} with {source_path}")
+
+    # Delete files in destination folder that are not in the new copy
+    for root, dirs, files in os.walk(destination_folder):
+        for file in files:
+            destination_path = os.path.join(root, file)
+            relative_path = os.path.relpath(destination_path, destination_folder)
+            source_path = os.path.join(source_folder, relative_path)
+
+            if not os.path.exists(source_path):
+                os.remove(destination_path)
+                print(f"Deleted {destination_path}")
+
 
 
 

@@ -1,15 +1,11 @@
-# Time distribution and handling task
+# Onboard Data Handling (OBDH) Task
 
-from hal.pycubed import hardware
 from tasks.template_task import DebugTask
-
-import time
-
 
 class Task(DebugTask):
 
-    name = 'TIME'
-    ID = 0x01
+    name = 'OBDH'
+    ID = 0x02
     
 
     async def main_task(self):

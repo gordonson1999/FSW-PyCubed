@@ -13,14 +13,13 @@ fm.delete_all_files()
 
 
 print("SD Card Directories: ", fm.list_directories())
-fm.register_file_process("log", "fBBBB", line_limit=20)
-fm.register_file_process("imu", "ffff", line_limit=10)
-fm.register_file_process("sun", "ffffB", line_limit=15)
+fm.register_data_process("log", "fBBBB", True, line_limit=20)
+fm.register_data_process("imu", "ffff", True, line_limit=10)
 print("SD Card Directories: ", fm.list_directories())
 
 
 i = 0
-MAX_STEP = 100
+MAX_STEP = 10
 
 fm.print_directory()
 
@@ -30,7 +29,7 @@ rb = lambda : random.getrandbits(1)
 
 print("STARTING LOOP")
 ######################### MAIN LOOP ##############################
-while True:
+while False:
 
     print("STEP ", i+1)
     
@@ -41,14 +40,10 @@ while True:
     imu_data = OrderedDict({'time': time.time(), 'gyro': random.random(), 'acc': random.random(), 'mag': random.random()})
     fm.log_data("imu", *imu_data.values())
 
-    sun_data = OrderedDict({'time': time.time(), 'x': random.random(), 'y': random.random(), 'z': random.random(), 'eclipse': rb()})
-    fm.log_data("sun", *sun_data.values())
-
-
     print("Current file size log: ", fm.get_current_file_size('log'))
     print("Current file size imu: ", fm.get_current_file_size('imu'))
-    print("Current file size sun: ", fm.get_current_file_size('sun'))
     
+    print("latest imu: ", fm.get_latest_data("imu"))
 
     time.sleep(1)
 
@@ -57,10 +52,38 @@ while True:
     if i > MAX_STEP:
         break
 
+import time
+
+log_data = OrderedDict({'time': time.time(), 'a_status': rb(), 'b_status': rb(), 'c_status': rb(), 'd_status': rb()})
+fm.log_data("log", *log_data.values())
+fm.log_data("log", *log_data.values())
+fm.log_data("log", *log_data.values())
+fm.log_data("log", *log_data.values())
+time.sleep(2)
+
+path = fm.request_TM_path("log")
+
+print("Exclusion list: ", fm.data_process_registry["log"].excluded_paths)
+
+fm.log_data("log", *log_data.values())
+
+fm.notify_TM_path("log", path)
+print("Deletion list: ", fm.data_process_registry["log"].delete_paths)
+
+fm.log_data("log", *log_data.values())
+
+fm.print_directory()
+
+fm.clean_up()
+fm.log_data("log", *log_data.values())
+
+
+print("Current file size log: ", fm.get_current_file_size('log'))
+
+
 print("SD directories and files...")
 
 fm.print_directory()
-#print(fm.file_process_registry["sun"].read_current_file())
 
 print("FINISHED.")
 

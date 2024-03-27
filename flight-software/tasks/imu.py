@@ -7,7 +7,7 @@ import time
 class Task(DebugTask):
 
     name = 'IMU'
-    ID = 0x01
+    ID = 0x05
 
 
     curr_time = time.monotonic_ns()
@@ -26,7 +26,7 @@ class Task(DebugTask):
         self.curr_time = time.monotonic_ns()
         data_cache = {'imu':readings}
 
-        # Just checking frequency
+        # Temp
         print(f'[{self.ID}][{self.name}] Frequency check: {self.curr_time - prev_time}')
-        print(f'[{self.ID}][{self.name}] data: {data_cache}')
+        print(f'[{self.ID}][{self.name}] Data: {data_cache}')
         

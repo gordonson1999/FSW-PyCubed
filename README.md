@@ -5,6 +5,13 @@ The repository contains the current flight software stack for the **PyCubed Boar
 - Collecting a dataset of images of the Earth to further efforts in CubeSat visual applications.
 - Demonstrating efficient on-orbit ML/GPU Payload processing 
 
+## Moving files to the board
+
+Moving the flight software code to the Argus board can be automated using the pseudocompile.py script 
+
+```bash
+python pseudocompile.py -s <source_folder_path> -d <destination_folder_path>
+```
 
 ## [All PyCubed Resources](https://www.notion.so/maholli/All-PyCubed-Resources-8738cab0dd0743239a3cde30c6066452)
 Baseline default files used were the mainboard-v05 directory.

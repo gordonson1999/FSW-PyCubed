@@ -144,17 +144,18 @@ class PyCubed:
         _rf_rst1.switch_to_output(value=True)
         self.radio1_DIO0.switch_to_input()
 
-        # Initialize SD card (always init SD before anything else on spi bus)
+        # If the same SPI bus is shared with other peripherals, the SD card must be initialized before accessing any other peripheral on the bus. 
+        # Failure to do so can prevent the SD card from being recognized until it is powered off or re-inserted. 
         try:
             # Baud rate depends on the card, 4MHz should be safe
             _sd = sdcardio.SDCard(self.spi, board.SD_CS, baudrate=4000000)
             _vfs = VfsFat(_sd)
             mount(_vfs, "/sd")
-            self.fs=_vfs
             sys.path.append("/sd")
+            self.fs=_vfs
             self.hardware['SDcard'] = True
         except Exception as e:
-            if self.debug: print('[ERROR][SD Card]',e)
+            if self.debug: print('[ERROR][SD Card]', e)
 
         # Initialize Neopixel
         try:
