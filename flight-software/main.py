@@ -1,33 +1,28 @@
-'''
-General rainbow routine for neopixel adapted from Adafruit Neopixel example.
-Should work on all PyCubed boards with a "NEOPIXEL" pin defined in firmware.
 
-M.Holliday
-pycubed.org
-'''
-from pycubed import cubesat
-import time
+import sys
 
-cubesat.neopixel.auto_write=False
-# cubesat.neopixel.brightness=1
+for path in ['/hal', '/apps']:
+    if path not in sys.path:
+        sys.path.append(path)
 
-def wheel(pos):
-    if pos < 0 or pos > 255:
-        return (0, 0, 0)
-    if pos < 85:
-        return (255 - pos * 3, pos * 3, 0)
-    if pos < 170:
-        pos -= 85
-        return (0, 255 - pos * 3, pos * 3)
-    pos -= 170
-    return (pos * 3, 0, 255 - pos * 3)
 
-def rainbow_cycle(wait):
-    for j in range(255):
-        cubesat.RGB = wheel(j & 255)
-        cubesat.neopixel.show()
-        time.sleep(wait)
+print("initializing the board...")
+from hal.pycubed import hardware
+from state_manager import state_manager
 
-######################### MAIN LOOP ##############################
-while True:
-     rainbow_cycle(0.1) # change value to adjust speed
+
+"""import time 
+from apps.data_handler import DataHandler as DH
+DH.delete_all_files()
+time.sleep(5000)"""
+
+
+
+try:
+    # Run forever
+    state_manager.start('STARTUP')
+    #import obdh_sd_test
+except Exception as e:
+    print(e)
+    # TODO Log the error
+
