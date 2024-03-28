@@ -42,7 +42,7 @@ QUEUE_1 = 0x01
 QUEUE_2 = 0x02
 
 # Heartbeat sequence
-HEARTBEAT_SEQ = [SAT_HEARTBEAT_BATT, SAT_HEARTBEAT_BATT, SAT_HEARTBEAT_SUN, SAT_HEARTBEAT_IMU, SAT_HEARTBEAT_BATT, SAT_HEARTBEAT_BATT, SAT_HEARTBEAT_SUN, SAT_HEARTBEAT_GPS]
+HEARTBEAT_SEQ = [SAT_HEARTBEAT_BATT, SAT_HEARTBEAT_SUN, SAT_HEARTBEAT_IMU, SAT_HEARTBEAT_BATT, SAT_HEARTBEAT_SUN, SAT_HEARTBEAT_GPS]
 
 # Other constants
 REQ_ACK_NUM = 0x80
@@ -93,13 +93,13 @@ def construct_message(lora_tx_message_ID):
         lora_tx_message += [0x00, 0x00]
 
         # Add x-axis sun vector 
-        lora_tx_message += convert_fixed_point_hp(0.1234)
+        lora_tx_message += convert_fixed_point_hp(0.1234567)
 
         # Add y-axis sun vector 
-        lora_tx_message += convert_fixed_point_hp(0.5678)
+        lora_tx_message += convert_fixed_point_hp(0.1357924)
 
         # Add z-axis sun vector 
-        lora_tx_message += convert_fixed_point_hp(-0.1234)
+        lora_tx_message += convert_fixed_point_hp(-0.1234567)
 
         # Add time reference as uint32_t 
         lora_tx_message += [0x65, 0xF9, 0xE8, 0x4A]
@@ -188,6 +188,11 @@ def construct_message(lora_tx_message_ID):
 
         # Add time reference as uint32_t 
         lora_tx_message += [0x65, 0xF9, 0xE8, 0x4A]
+    
+    else:
+        # Construct SAT ACK 
+        lora_tx_message = [REQ_ACK_NUM | SAT_ACK, 0x00, 0x00, 0x36]
+        lora_tx_message += [GS_ACK, GS_ACK, 0x00, 0x00]
 
     return bytes(lora_tx_message)
 
