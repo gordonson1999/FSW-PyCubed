@@ -76,6 +76,7 @@ class CubeSat:
         self._rtc = None
         self._radio = None
         self._sd_card = None
+        self._burn_wires = None
 
         # Debugging
         self._neopixel = None
@@ -244,3 +245,9 @@ class CubeSat:
         """NEOPIXEL: Returns the neopixel object
         """
         return self._neopixel
+    
+    @property
+    def BURN_WIRES(self):
+        """BURN_WIRES: Returns the burn wire object
+        """
+        return self._burn_wires

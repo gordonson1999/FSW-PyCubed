@@ -10,7 +10,7 @@ import board
 import sdcardio
 
 from drivers.diagnostics import Diagnostics
-from drivers import pcf8523, rfm9x, adm1176, bq25883, opt4001, adafruit_gps, bmx160, drv8830
+from drivers import pcf8523, rfm9x, adm1176, bq25883, opt4001, adafruit_gps, bmx160, drv8830, burnwire
 
 class ArgusV1Interfaces:
     """
@@ -420,6 +420,18 @@ class ArgusV1(CubeSat):
             super()._device_list.append(sd_card)
         except Exception:
             return Diagnostics.SDCARD_NOT_INITIALIZED
+        
+        return Diagnostics.NOERROR
+    
+    def _burn_wire_boot(self) -> int:
+        """burn_wire_boot: Boot sequence for the burn wires
+        """
+        try:
+            burn_wires = burnwire.BurnWires(ArgusV1Components.BURN_WIRE_ENABEL, ArgusV1Components.BURN_WIRE_XP, ArgusV1Components.BURN_WIRE_XM, ArgusV1Components.BURN_WIRE_YP, ArgusV1Components.BURN_WIRE_YM)
+            super()._burn_wires = burn_wires
+            super()._device_list.append(burn_wires)
+        except Exception:
+            return Diagnostics.BURNWIRES_NOT_INITIALIZED
         
         return Diagnostics.NOERROR
 

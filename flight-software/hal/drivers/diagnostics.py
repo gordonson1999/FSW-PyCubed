@@ -76,8 +76,11 @@ class Diagnostics:
     # Neopixel errors
     NEOPIXEL_NOT_INITIALIZED                        = const(38)
 
-    __ERROR_MIN = const(0)
-    __ERROR_MAX = const(38)
+    # Burn Wire errors
+    BURNWIRES_NOT_INITIALIZED                       = const(39)
+
+    __ERROR_MIN                                     = const(0)
+    __ERROR_MAX                                     = const(39)
 
     def __init__(self):
         self.__errors_present = False
