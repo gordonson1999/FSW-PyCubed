@@ -6,8 +6,8 @@ from hal.pycubed import PyCubed
 PYCUBED_V05 = const(0)
 ARGUS_V1 = const(1)
 
-# HARDWARE_VERSION = PyCubed_V05 # 03/26/2024
-HARDWARE_VERSION = ARGUS_V1 # 03/27/2024
+# HARDWARE_VERSION = PyCubed_V05
+HARDWARE_VERSION = ARGUS_V1
 
 SATELLITE: CubeSat = None
 

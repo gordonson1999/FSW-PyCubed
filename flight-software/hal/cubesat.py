@@ -4,6 +4,7 @@ import digitalio
 
 from bitflags import bitFlag, multiBitFlag 
 from micropython import const
+from drivers.diagnostics import Diagnostics
 
 # NVM register numbers
 _BOOTCNT  = const(0)
@@ -42,6 +43,12 @@ class CubeSat:
         return cls.instance
 
     def __init__(self):
+        # List of successfully initialized devices
+        self._device_list: list[Diagnostics] = []
+
+        # List of errors from most recent system diagnostic test
+        self._recent_errors: list[int] = [Diagnostics.NOERROR]
+        
         # Interfaces
         self._uart1 = None
         self._uart2 = None
@@ -73,15 +80,22 @@ class CubeSat:
         # Debugging
         self._neopixel = None
     
+    ## ABSTRACT METHOD ##
     def boot_sequence(self) -> None:
         """boot_sequence: Boot sequence for the CubeSat.
         """
         raise NotImplementedError("CubeSats must implement boot method")
     
+    ## ABSTRACT METHOD ##
     def run_system_diagnostics(self) -> list[int] | None:
         """run_diagnostic_test: Run all tests for the component
         """
         raise NotImplementedError("CubeSats must implement diagnostics method")
+    
+    def get_recent_errors(self) -> list[int]:
+        """get_recent_errors: Get the most recent errors from the system
+        """
+        return self._recent_errors
     
     ######################### INTERFACES #########################
     

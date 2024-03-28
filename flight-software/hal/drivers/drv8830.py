@@ -80,7 +80,6 @@ class VoltageAdapter:
         offset -= 0.01 if volts >= 3.86 else 0
         return int(offset + volts / 0.08)
 
-
 class BridgeControl:
     """H-bridge control states and descriptors. Bit order: IN2 IN1"""
 

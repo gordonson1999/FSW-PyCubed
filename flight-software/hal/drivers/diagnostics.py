@@ -71,10 +71,10 @@ class Diagnostics:
     RFM9X_NOT_INITIALIZED                           = const(36)
 
     # SD card errors
-    SD_CARD_NOT_INITIALIZED                         = const(37)
+    SDCARD_NOT_INITIALIZED                          = const(37)
 
-    # I2C errors
-    I2C_NOT_INITIALIZED                            = const(38)
+    # Neopixel errors
+    NEOPIXEL_NOT_INITIALIZED                        = const(38)
 
     __ERROR_MIN = const(0)
     __ERROR_MAX = const(38)
