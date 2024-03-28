@@ -46,6 +46,8 @@ from adafruit_bus_device.i2c_device import I2CDevice
 from adafruit_register.i2c_bits import RWBits
 from adafruit_register.i2c_bit import ROBit, RWBit
 
+from diagnostics import Diagnostics
+
 try:
     import typing
     from busio import I2C
@@ -72,7 +74,7 @@ DEVICE_ID       = 0x11
 SOT_5X3 = 0
 PICOSTAR = 1
 
-class OPT4001:
+class OPT4001(Diagnostics):
     """
     Driver for the OPT4001 ambient light sensor
 
@@ -484,3 +486,43 @@ class OPT4001:
         }
         register_h, register_l = channels[id]
         return self.read_from_fifo(register_h, register_l, False)
+
+######################### DIAGNOSTICS #########################
+    
+    def __check_id_test(self) -> int:
+        """Checks the opt4001 id to ensure that we can interface with the devices
+        
+        :return: True if read successful, otherwise false
+        """
+        if not self.check_id():
+            return Diagnostics.OPT4001_ID_CHECK_FAILED
+        
+        return Diagnostics.NOERROR
+    
+    def __read_counter_crc_test(self) -> int:
+        """_read_counter_crc_test: Checks if the crc counter functions properly
+
+        :return: True if pass, otherwise false
+        """
+        _, counter, _ = self.get_lsb_counter_crc(self.RESULT_L) #looking at register 1
+        if not ((0 <= counter) and (counter <= 15)):
+            return Diagnostics.OPT4001_CRC_COUNTER_TEST_FAILED
+        
+        return Diagnostics.NOERROR
+
+    def run_diagnostics(self) -> list[int] | None:
+        """run_diagnostic_test: Run all tests for the component
+
+        :return: List of error codes
+        """
+        error_list = []
+
+        error_list.append(self.__check_id_test())
+        error_list.append(self.__read_counter_crc_test())
+
+        error_list = list(set(error_list))
+
+        if not Diagnostics.NOERROR in error_list:
+            super().__errors_present = True
+
+        return error_list

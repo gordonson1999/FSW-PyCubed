@@ -50,10 +50,11 @@ from adafruit_register.i2c_bits import RWBits
 from adafruit_register.i2c_bit import RWBit
 from adafruit_register.i2c_bit import ROBit
 
+from diagnostics import Diagnostics
+
 # DEVICE REGISTER MAP
 _CONTROL = 0x00  # Control Register      -W
 _FAULT = 0x01  # Fault Status Register R-
-
 
 class VoltageAdapter:
     """Output voltage calculator. Datasheet formula modified to match the
@@ -108,7 +109,7 @@ class Faults:
     DESCRIPTOR = ["FAULT", "OCP", "UVLO", "OTS", "ILIMIT"]
 
 
-class DRV8830:
+class DRV8830(Diagnostics):
     """DC motor driver with I2C interface. Using an internal PWM scheme, the
     DRV8830 produces a regulated output voltage from a normalized input value
     (-1.0 to +1.0) or voltage input value (-5.06 to +5.06 volts).
@@ -124,6 +125,8 @@ class DRV8830:
         self._in_x = BridgeControl.STANDBY
         # Clear all fault status flags
         self._clear = True
+
+        super().__init__()
 
     # DEFINE I2C DEVICE BITS, NYBBLES, BYTES, AND REGISTERS
     _in_x = RWBits(2, _CONTROL, 0, 1, False)  # Output state; IN2, IN1
@@ -268,3 +271,71 @@ class DRV8830:
     def __exit__(self, exception_type, exception_value, traceback):
         self._vset = 0
         self._in_x = BridgeControl.STANDBY
+
+######################### DIAGNOSTICS #########################
+    def __check_for_faults(self) -> list[int]:
+        """_check_for_faults: Checks for any device faluts returned by fault function in DRV8830
+
+        :return: List of errors that exist in the fault register
+        """
+        faults_flag, faults = self.fault
+        
+        if not faults_flag:
+            return [Diagnostics.NOERROR]
+        
+        errors: list[int] = []
+        
+        if ("OCP" in faults):
+            errors.append(Diagnostics.DRV8830_OVERCURRENT_EVENT)
+        if ("UVLO" in faults):
+            errors.append(Diagnostics.DRV8830_UNDERVOLTAGE_LOCKOUT)
+        if ("OTS" in faults):
+            errors.append(Diagnostics.DRV8830_OVERTEMPERATURE_CONDITION)
+        if ("ILIMIT" in faults):
+            errors.append(Diagnostics.DRV8830_EXTENDED_CURRENT_LIMIT_EVENT)
+        
+        return errors
+    
+    def __throttle_tests(self) -> int:
+        """_throttle_tests: Checks for any throttle errors in DRV8830, whether the returned reading is
+        outside of the set range indicated in the driver file
+
+        :return: true if test passes, false if fails
+        """
+        # throttle_val = self._device.throttle
+        # print(throttle_val)
+        # if throttle_val is not None:
+        #     if (throttle_val < -1.0) or (throttle_val > 1.0):
+        #         print("ERROR: Throttle value outside of settled range")
+        #         success = False
+        #         return success
+            
+        throttle_volts_val = self.throttle_volts
+        print(throttle_volts_val)
+        if throttle_volts_val is not None:
+            if (throttle_volts_val < -5.06) or (throttle_volts_val > 5.06):
+                return Diagnostics.DRV8830_THROTTLE_OUTSIDE_RANGE
+            
+        throttle_raw_val = self.throttle_volts
+        print(throttle_raw_val)
+        if throttle_raw_val is not None:
+            if (throttle_raw_val < -63) or (throttle_raw_val > 63):
+                return Diagnostics.DRV8830_THROTTLE_OUTSIDE_RANGE
+        
+        return Diagnostics.NOERROR
+
+
+    def run_diagnostics(self) -> list[int] | None:
+        """run_diagnostic_test: Run all tests for the component
+        """
+        error_list: list[int] = []
+
+        error_list = self.__check_for_faults()
+        error_list.append(self.__throttle_tests())
+
+        error_list = list(set(error_list))
+
+        if not Diagnostics.NOERROR in error_list:
+            super().__errors_present = True
+
+        return error_list

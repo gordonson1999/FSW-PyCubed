@@ -10,6 +10,9 @@ from adafruit_register.i2c_struct import Struct, UnaryStruct
 from adafruit_register.i2c_bits import ROBits, RWBits
 from adafruit_register.i2c_bit import ROBit, RWBit
 
+import digitalio
+from diagnostics import Diagnostics
+
 # Chip ID
 BMX160_CHIP_ID = const(0xD8)
 
@@ -228,7 +231,7 @@ BMX160_FIFO_MGA_LENGTH               = const(20)
 
 # I2C address
 BMX160_I2C_ADDR            = const(0x68)
-BMX160_I2C_ALT_ADDR        = const(0x69)  # alternate address
+# BMX160_I2C_ALT_ADDR        = const(0x69)  # alternate address
 # Interface settings
 BMX160_SPI_INTF            = const(1)
 BMX160_I2C_INTF            = const(0)
@@ -237,7 +240,9 @@ BMX160_SPI_WR_MASK         = const(0x7F)
 
 # Error related
 BMX160_OK                  = const(0)
-BMX160_ERROR               = const(-1)
+BMX160_ERROR               = -1
+
+BMX160_ERROR_CODES         = [0x1, 0x2, 0x3, 0x6, 0x7]
 
 # Each goes with a different sensitivity in decreasing order
 AccelSensitivity2Gravity_values = [2048, 4086, 8192, 16384]   # accelerometer sensitivity. See Section 1.2, Table 2
@@ -267,7 +272,7 @@ class _ScaledReadOnlyStruct(Struct):
 # scale factor can be changed as a function of range mode
 
 
-class BMX160:
+class BMX160(Diagnostics):
     """
     Driver for the BMX160 accelerometer, magnetometer, gyroscope.
 
@@ -359,6 +364,8 @@ class BMX160:
         self.init_gyro()
         # print("status:", format_binary(self.status))
 
+        super().__init__()
+
     ######################## SENSOR API ########################
 
     def read_all(self):
@@ -391,6 +398,7 @@ class BMX160:
     @property
     def temperature(self):
         return self._temp[0]*self.TEMP_SCALAR+23
+    
     @property
     def temp(self):
         return self._temp[0]*self.TEMP_SCALAR+23
@@ -646,18 +654,77 @@ class BMX160:
         else:
             settingswarning(warning_interp)
 
+######################### DIAGNOSTICS #########################
+            
+    def __check_for_errors(self) -> list[int]:
+        """_check_for_errors: Checks for any device errors on BMX160
+
+        :return: List of error conditions if present
+        """
+        NO_ERROR = const("00000000")
+
+        error_list = []
+
+        error_reg = self.query_error
+        if (error_reg != NO_ERROR):
+            error_list.append(Diagnostics.BMX160_UNSPECIFIED_ERROR)
+
+        if self.fatal_err != 0:
+            error_list.append(Diagnostics.BMX160_FATAL_ERROR)
+        
+        if(self.error_code in self.BMX160_ERROR_CODES):
+            error_list.append(Diagnostics.BMX160_NON_FATAL_ERROR)
+
+        if (self.drop_cmd_err != 0):
+            error_list.append(Diagnostics.BMX160_DROP_COMMAND_ERROR)
+
+        if error_list.count() == 0:
+            error_list.append(Diagnostics.NOERROR)
+
+    def run_diagnostics(self) -> list[int] | None:
+        """run_diagnostic_test: Run all tests for the component
+
+        :return: List of error codes
+        """
+        error_list = []
+
+        error_list = self.__check_for_errors()
+
+        error_list = list(set(error_list))
+
+        if not Diagnostics.NOERROR in error_list:
+            super().__errors_present = True
+
+        return error_list
+
 
 class BMX160_I2C(BMX160):
     """Driver for the BMX160 connect over I2C."""
 
-    def __init__(self, i2c):
+    def __init__(self, i2c, enable_pin = None):
 
-        try:
-            self.i2c_device = I2CDevice(i2c, BMX160_I2C_ADDR,probe=False)
-        except:
-            self.i2c_device = I2CDevice(i2c, BMX160_I2C_ALT_ADDR,probe=False)
+        # try:
+        self.i2c_device = I2CDevice(i2c, BMX160_I2C_ADDR, probe=True)
+        # except:
+        #     self.i2c_device = I2CDevice(i2c, BMX160_I2C_ALT_ADDR, probe=True)
+
+        self.__enable = None
+        if enable_pin is not None:
+            self.__enable = digitalio.DigitalInOut(enable_pin)
+            self.__enable.switch_to_output()
+            self.__enable = False
 
         super().__init__()
+
+    def enable(self) -> None:
+        """Enable the GPS module through the enable pin
+        """
+        self.__enable = True
+
+    def disable(self) -> None:
+        """Disable the GPS module through the enable pin
+        """
+        self.__enable = False
 
     def read_u8(self, address):
         with self.i2c_device as i2c:

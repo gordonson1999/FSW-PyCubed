@@ -44,12 +44,12 @@ Implementation Notes
 """
 import time
 from micropython import const
+from diagnostics import Diagnostics
+import digitalio
+import time
 
 __version__ = "3.5.1"
 __repo__ = "https://github.com/adafruit/Adafruit_CircuitPython_GPS.git"
-
-
-_GPSI2C_DEFAULT_ADDRESS = const(0x10)
 
 # Internal helper parsing functions.
 # These handle input that might be none or null and return none instead of
@@ -86,11 +86,11 @@ def _parse_str(nmea_data):
 #pylint: disable-msg=R0902
 
 
-class GPS:
+class GPS(Diagnostics):
     """GPS parsing module.  Can parse simple NMEA data sentences from serial
     GPS modules to read latitude, longitude, and more.
     """
-    def __init__(self, uart, debug=False):
+    def __init__(self, uart, en=None, debug=False):
         self._uart = uart
         # Initialize null starting values for GPS attributes.
         self.timestamp_utc = None
@@ -118,6 +118,13 @@ class GPS:
         self.mess_num = None
         self._raw_sentence = None
         self.debug = debug
+
+        self.__enable = None
+
+        if en is not None:
+            self.__enable = digitalio.DigitalInOut(en)
+            self.__enable.switch_to_output()
+            self.__enable = False
 
     def update(self):
         """Check for updated data from the GPS module and process it
@@ -446,63 +453,48 @@ class GPS:
             pass
         self.satellites_prev = self.satellites
 
-class GPS_GtopI2C(GPS):
-    """GTop-compatible I2C GPS parsing module.  Can parse simple NMEA data
-    sentences from an I2C-capable GPS module to read latitude, longitude, and more.
-    """
-    def __init__(self, i2c_bus, *, address=_GPSI2C_DEFAULT_ADDRESS, debug=False,
-                 timeout=5):
-        import adafruit_bus_device.i2c_device as i2c_device
-        super().__init__(None, debug) # init the parent with no UART
-        self._i2c = i2c_device.I2CDevice(i2c_bus, address)
-        self._lastbyte = None
-        self._charbuff = bytearray(1)
-        self._internalbuffer = []
-        self._timeout = timeout
+    def enable(self) -> None:
+        """Enable the GPS module through the enable pin
+        """
+        self.__enable = True
 
-    def read(self, num_bytes=1):
-        """Read up to num_bytes of data from the GPS directly, without parsing.
-        Returns a bytearray with up to num_bytes or None if nothing was read"""
-        result = []
-        for _ in range(num_bytes):
-            with self._i2c as i2c:
-                # we read one byte at a time, verify it isnt part of a string of
-                # 'stuffed' newlines and then append to our result array for byteification
-                i2c.readinto(self._charbuff)
-                char = self._charbuff[0]
-                if (char == ord('\n')) and (self._lastbyte != ord('\r')):
-                    continue # skip duplicate \n's!
-                result.append(char)
-                self._lastbyte = char  # keep track of the last character approved
-        return bytearray(result)
+    def disable(self) -> None:
+        """Disable the GPS module through the enable pin
+        """
+        self.__enable = False
+    
+######################### DIAGNOSTICS #########################
 
-    def write(self, bytestr):
-        """Write a bytestring data to the GPS directly, without parsing
-        or checksums"""
-        with self._i2c as i2c:
-            i2c.write(bytestr)
+    def __check_for_updates(self) -> int:
+        """_check_for_errors: Checks for an update on the GPS
 
-    @property
-    def in_waiting(self):
-        """Returns number of bytes available in UART read buffer, always 32
-        since I2C does not have the ability to know how much data is available"""
-        return 32
+        :return: true if test passes, false if fails
+        """
+        num_tries = const(10)
 
-    def readline(self):
-        """Returns a newline terminated bytearray, must have timeout set for
-        the underlying UART or this will block forever!"""
-        timeout = time.monotonic() + self._timeout
-        while timeout > time.monotonic():
-            # check if our internal buffer has a '\n' termination already
-            if self._internalbuffer and (self._internalbuffer[-1] == ord('\n')):
-                break
-            char = self.read(1)
-            if not char:
-                continue
-            self._internalbuffer.append(char[0])
-            #print(bytearray(self._internalbuffer))
-        if self._internalbuffer and self._internalbuffer[-1] == ord('\n'):
-            ret = bytearray(self._internalbuffer)
-            self._internalbuffer = []   # reset the buffer to empty
-            return ret
-        return None  # no completed data yet
+        for i in range(num_tries):
+            success = False
+
+            success = self.update()
+            if success:
+                return Diagnostics.NOERROR
+            
+            time.sleep(1)
+
+        return Diagnostics.ADAFRUIT_GPS_UPDATE_CHECK_FAILED
+    
+    def run_diagnostics(self) -> list[int] | None:
+        """run_diagnostic_test: Run all tests for the component
+
+        :return: List of error codes
+        """
+        error_list = []
+
+        error_list.append(self.__check_for_updates())
+
+        error_list = list(set(error_list))
+
+        if not Diagnostics.NOERROR in error_list:
+            super().__errors_present = True
+
+        return error_list
