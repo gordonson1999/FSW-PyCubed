@@ -70,8 +70,14 @@ class Diagnostics:
     # RFM9X errors
     RFM9X_NOT_INITIALIZED                           = const(36)
 
+    # SD card errors
+    SD_CARD_NOT_INITIALIZED                         = const(37)
+
+    # I2C errors
+    I2C_NOT_INITIALIZED                            = const(38)
+
     __ERROR_MIN = const(0)
-    __ERROR_MAX = const(36)
+    __ERROR_MAX = const(38)
 
     def __init__(self):
         self.__errors_present = False

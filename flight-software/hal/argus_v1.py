@@ -7,6 +7,7 @@ import busio
 from cubesat import CubeSat
 from micropython import const
 import board
+import sdcardio
 
 from drivers.diagnostics import Diagnostics
 from drivers import pcf8523, rfm9x, adm1176, bq25883, opt4001, adafruit_gps, bmx160, drv8830
@@ -100,11 +101,17 @@ class ArgusV1Components:
     SD_CARD_SPI                             = ArgusV1Interfaces.SPI
     SD_CARD_CS                              = board.SD_CS
 
+    # NEOPIXEL
+    NEOPIXEL_SDA                            = board.NEOPIXEL
+    NEOPIXEL_BRIGHTNESS                     = const(0.2)
+
 class ArgusV1(CubeSat):
     def __init__(self):
         super().__init__()
 
-    ############### BOOT SEQUENCE ###############
+        self.__device_list: list[Diagnostics] = []
+
+    ######################## BOOT SEQUENCE ########################
 
     def boot_sequence(self) -> list[int]:
         """boot_sequence: Boot sequence for the CubeSat.
@@ -129,12 +136,13 @@ class ArgusV1(CubeSat):
         error_list.append(self.__sun_sensor_zp_boot())
         error_list.append(self.__sun_sensor_zm_boot())
         error_list.append(self.__radio_boot())
+        error_list.append(self.__neopixel_boot())
+        error_list.append(self.__sd_card_boot())
 
         error_list = [error for error in error_list if error != Diagnostics.NOERROR]
 
         return error_list
 
-    
     def __gps_boot(self) -> int:
         """GPS_boot: Boot sequence for the GPS
 
@@ -143,6 +151,7 @@ class ArgusV1(CubeSat):
         try:
             gps = adafruit_gps.AdafruitGPS(ArgusV1Components.GPS_UART, ArgusV1Components.GPS_ENABLE)
             super()._gps = gps
+            self.__device_list.append(gps)
         except Exception:
             return Diagnostics.ADAFRUIT_GPS_NOT_INITIALIZED
         
@@ -156,6 +165,7 @@ class ArgusV1(CubeSat):
         try:
             battery_monitor = adm1176.ADM1176(ArgusV1Components.BATTERY_POWER_MONITOR_I2C, ArgusV1Components.BATTERY_POWER_MONITOR_I2C_ADDRESS)
             super()._battery_monitor = battery_monitor
+            self.__device_list.append(battery_monitor)
         except Exception:
             return Diagnostics.ADM1176_NOT_INITIALIZED
         
@@ -169,6 +179,7 @@ class ArgusV1(CubeSat):
         try:
             jetson_monitor = adm1176.ADM1176(ArgusV1Components.JETSON_POWER_MONITOR_I2C, ArgusV1Components.JETSON_POWER_MONITOR_I2C_ADDRESS)
             super()._jetson_monitor = jetson_monitor
+            self.__device_list.append(jetson_monitor)
         except Exception:
             return Diagnostics.ADM1176_NOT_INITIALIZED
         
@@ -182,6 +193,7 @@ class ArgusV1(CubeSat):
         try:
             imu = bmx160.BMX160(ArgusV1Components.IMU_I2C, ArgusV1Components.IMU_I2C_ADDRESS, ArgusV1Components.IMU_ENABLE)
             super()._imu = imu
+            self.__device_list.append(imu)
         except Exception:
             return Diagnostics.BMX160_NOT_INITIALIZED
         
@@ -195,6 +207,7 @@ class ArgusV1(CubeSat):
         try:
             charger = bq25883.BQ25883(ArgusV1Components.CHARGER_I2C, ArgusV1Components.CHARGER_I2C_ADDRESS)
             super()._charger = charger
+            self.__device_list.append(charger)
         except Exception:
             return Diagnostics.BQ25883_NOT_INITIALIZED
         
@@ -208,6 +221,7 @@ class ArgusV1(CubeSat):
         try:
             torque_xp = drv8830.DRV8830(ArgusV1Components.TORQUE_COILS_I2C, ArgusV1Components.TORQUE_XP_I2C_ADDRESS)
             super()._torque_xp = torque_xp
+            self.__device_list.append(torque_xp)
         except Exception:
             return Diagnostics.DRV8830_NOT_INITIALIZED
         
@@ -221,6 +235,7 @@ class ArgusV1(CubeSat):
         try:
             torque_xm = drv8830.DRV8830(ArgusV1Components.TORQUE_COILS_I2C, ArgusV1Components.TORQUE_XM_I2C_ADDRESS)
             super()._torque_xm = torque_xm
+            self.__device_list.append(torque_xm)
         except Exception:
             return Diagnostics.DRV8830_NOT_INITIALIZED
         
@@ -234,6 +249,7 @@ class ArgusV1(CubeSat):
         try:
             torque_yp = drv8830.DRV8830(ArgusV1Components.TORQUE_COILS_I2C, ArgusV1Components.TORQUE_YP_I2C_ADDRESS)
             super()._torque_yp = torque_yp
+            self.__device_list.append(torque_yp)
         except Exception:
             return Diagnostics.DRV8830_NOT_INITIALIZED
         
@@ -247,6 +263,7 @@ class ArgusV1(CubeSat):
         try:
             torque_ym = drv8830.DRV8830(ArgusV1Components.TORQUE_COILS_I2C, ArgusV1Components.TORQUE_YM_I2C_ADDRESS)
             super()._torque_ym = torque_ym
+            self.__device_list.append(torque_ym)
         except Exception:
             return Diagnostics.DRV8830_NOT_INITIALIZED
         
@@ -260,6 +277,7 @@ class ArgusV1(CubeSat):
         try:
             torque_z = drv8830.DRV8830(ArgusV1Components.TORQUE_COILS_I2C, ArgusV1Components.TORQUE_Z_I2C_ADDRESS)
             super()._torque_z = torque_z
+            self.__device_list.append(torque_z)
         except Exception:
             return Diagnostics.DRV8830_NOT_INITIALIZED
         
@@ -273,6 +291,7 @@ class ArgusV1(CubeSat):
         try:
             sun_sensor_xp = opt4001.OPT4001(ArgusV1Components.SUN_SENSORS_I2C, ArgusV1Components.SUN_SENSOR_XP_I2C_ADDRESS)
             super()._sun_sensor_xp = sun_sensor_xp
+            self.__device_list.append(sun_sensor_xp)
         except Exception:
             return Diagnostics.OPT4001_NOT_INITIALIZED
         
@@ -286,6 +305,7 @@ class ArgusV1(CubeSat):
         try:
             sun_sensor_xm = opt4001.OPT4001(ArgusV1Components.SUN_SENSORS_I2C, ArgusV1Components.SUN_SENSOR_XM_I2C_ADDRESS)
             super()._sun_sensor_xm = sun_sensor_xm
+            self.__device_list.append(sun_sensor_xm)
         except Exception:
             return Diagnostics.OPT4001_NOT_INITIALIZED
         
@@ -299,6 +319,7 @@ class ArgusV1(CubeSat):
         try:
             sun_sensor_yp = opt4001.OPT4001(ArgusV1Components.SUN_SENSORS_I2C, ArgusV1Components.SUN_SENSOR_YP_I2C_ADDRESS)
             super()._sun_sensor_yp = sun_sensor_yp
+            self.__device_list.append(sun_sensor_yp)
         except Exception:
             return Diagnostics.OPT4001_NOT_INITIALIZED
         
@@ -312,6 +333,7 @@ class ArgusV1(CubeSat):
         try:
             sun_sensor_ym = opt4001.OPT4001(ArgusV1Components.SUN_SENSORS_I2C, ArgusV1Components.SUN_SENSOR_YM_I2C_ADDRESS)
             super()._sun_sensor_ym = sun_sensor_ym
+            self.__device_list.append(sun_sensor_ym)
         except Exception:
             return Diagnostics.OPT4001_NOT_INITIALIZED
         
@@ -325,6 +347,7 @@ class ArgusV1(CubeSat):
         try:
             sun_sensor_zp = opt4001.OPT4001(ArgusV1Components.SUN_SENSORS_I2C, ArgusV1Components.SUN_SENSOR_ZP_I2C_ADDRESS)
             super()._sun_sensor_zp = sun_sensor_zp
+            self.__device_list.append(sun_sensor_zp)
         except Exception:
             return Diagnostics.OPT4001_NOT_INITIALIZED
         
@@ -338,6 +361,7 @@ class ArgusV1(CubeSat):
         try:
             sun_sensor_zm = opt4001.OPT4001(ArgusV1Components.SUN_SENSORS_I2C, ArgusV1Components.SUN_SENSOR_ZM_I2C_ADDRESS)
             super()._sun_sensor_zm = sun_sensor_zm
+            self.__device_list.append(sun_sensor_zm)
         except Exception:
             return Diagnostics.OPT4001_NOT_INITIALIZED
         
@@ -351,6 +375,7 @@ class ArgusV1(CubeSat):
         try:
             radio = rfm9x.RFM9x(ArgusV1Components.RADIO_SPI, ArgusV1Components.RADIO_CS, ArgusV1Components.RADIO_RESET, ArgusV1Components.RADIO_FREQ)
             super()._radio = radio
+            self.__device_list.append(radio)
         except Exception:
             return Diagnostics.RFM9X_NOT_INITIALIZED
     
@@ -364,16 +389,48 @@ class ArgusV1(CubeSat):
         try:
             rtc = pcf8523.PCF8523(ArgusV1Interfaces.I2C1)
             super()._rtc = rtc
+            self.__device_list.append(rtc)
         except Exception:
             return Diagnostics.PCF8523_NOT_INITIALIZED
         
         return Diagnostics.NOERROR
+    
+    def __neopixel_boot(self) -> int:
+        """neopixel_boot: Boot sequence for the neopixel
+        """
+        try:
+            neopixel = neopixel.NeoPixel(ArgusV1Components.NEOPIXEL_SDA, brightness=ArgusV1Components.NEOPIXEL_BRIGHTNESS, pixel_order=neopixel.GRB)
+            super()._neopixel = neopixel
+            self.__device_list.append(neopixel)
+        except Exception:
+            return Diagnostics.NEOPIXEL_NOT_INITIALIZED
+        
+        return Diagnostics.NOERROR
+    
+    def __sd_card_boot(self) -> int:
+        """sd_card_boot: Boot sequence for the SD card
+        """
+        try:
+            sd_card = sdcardio.SDCard(ArgusV1Components.SD_CARD_SPI, ArgusV1Components.SD_CARD_CS, ArgusV1Interfaces.SD_BAUD)
+            super()._sd_card = sd_card
+            self.__device_list.append(sd_card)
+        except Exception:
+            return Diagnostics.SDCARD_NOT_INITIALIZED
+        
+        return Diagnostics.NOERROR
 
-    ############### DIAGNOSTICS ###############
+    ######################## DIAGNOSTICS ########################
 
     def run_system_diagnostics(self) -> list[int] | None:
         """run_diagnostic_test: Run all diagnostics across all components
         """
-        raise NotImplementedError("CubeSats must implement diagnostics method")
+        error_list: list[int] = []
+
+        for device in self.__device_list:
+            error_list.append(device.run_diagnostics())
+
+        error_list = list(set(error_list)) # Remove duplicate errors
+
+        return error_list
     
 

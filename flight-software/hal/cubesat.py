@@ -68,6 +68,7 @@ class CubeSat:
         self._sun_sensor_zm = None
         self._rtc = None
         self._radio = None
+        self._sd_card = None
 
         # Debugging
         self._neopixel = None
@@ -82,7 +83,7 @@ class CubeSat:
         """
         raise NotImplementedError("CubeSats must implement diagnostics method")
     
-    ######################### DEVICES #########################
+    ######################### INTERFACES #########################
     
     @property
     def UART1(self):
@@ -114,6 +115,8 @@ class CubeSat:
         """
         return self._i2c2
     
+    ######################### DEVICES #########################
+
     @property
     def GPS(self):
         """GPS: Returns the gps object
