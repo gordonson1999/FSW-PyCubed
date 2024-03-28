@@ -1,44 +1,34 @@
-from debugcolor import co
 
-class Task:
+# TODO Logging
+
+class DebugTask:
 
     """
-    The Task Object.
+    A Task Object.
 
     Attributes:
-        priority:    The priority level assigned to the task.
-        frequency:   Number of times the task must be executed in 1 second (Hz).
-        name:        Name of the task object for future reference
-        color:       Debug color for serial terminal
+        ID:          Unique identifier for the task.
+        name:        Name of the task object for logging purposes.
     """
+    
+    ID = 0xFF
+    name = 'no'
 
-    priority = 10
-    frequency = 1
-    name = 'temp'
-    color = 'gray'
 
-    def __init__(self, satellite):
-        """
-        Initialize the Task using the PyCubed cubesat object.
-        
-        :type satellite: Satellite
-        :param satellite: The cubesat to be registered
-
-        """
-        self.cubesat = satellite
+    def __init__(self):
+        pass
 
     def debug(self,msg,level=1):
         """
-        Print a debug message formatted with the task name and color
+        Print a debug message formatted with the task name 
 
         :param msg: Debug message to print
         :param level: > 1 will print as a sub-level
 
         """
-        if level==1:
-            print(f'[{co(msg=self.name,color=self.color):>30}] {msg}')
-        else:
-            print(f'\t   └── {msg}')
+        print(f'[{self.ID}][{self.name}] Error: {msg}')
+
+            
 
     async def main_task(self, *args, **kwargs):
         """
@@ -49,3 +39,16 @@ class Task:
 
         """
         pass
+
+    
+    async def _run(self):
+        """
+        Try to run the main task, then call handle_error if an error is raised.
+        """
+        try:
+            await self.main_task()
+        except Exception as e:
+            # TODO change this to comply with the logging system of the framework
+            self.debug(f'{e}')
+
+    
