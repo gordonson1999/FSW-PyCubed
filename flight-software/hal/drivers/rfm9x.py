@@ -15,6 +15,7 @@ from random import random
 import digitalio
 from micropython import const
 import adafruit_bus_device.spi_device as spidev
+from diagnostics.diagnostics import Diagnostics
 
 # pylint: disable=bad-whitespace
 # Internal constants:
@@ -114,7 +115,7 @@ VR3X=b'\xff\x00\xff\x00\xff\x00\xff\x00\x00\x00\xff\xff\xff\x00\xff\x00\x00\x00\
 
 _bigbuffer=bytearray(256)
 bw_bins = (7800, 10400, 15600, 20800, 31250, 41700, 62500, 125000, 250000)
-class RFM9x:
+class RFM9x(Diagnostics):
     """Interface to a RFM95/6/7/8 LoRa radio module.  Allows sending and
     receivng bytes of data in long range LoRa mode at a support board frequency
     (433/915mhz).
@@ -355,6 +356,8 @@ class RFM9x:
         self.pa_ramp=0   # mode agnostic
         self.lna_boost=3 # mode agnostic
 
+        super().__init__(self._reset)
+
     def cw(self,msg=None):
         success=False
         if msg is None:
@@ -455,6 +458,7 @@ class RFM9x:
             self._BUFFER[1] = val & 0xFF
             device.write(self._BUFFER, end=2)
 
+    #### OVERRIDE function of Diagnostics
     def reset(self):
         """Perform a reset of the chip."""
         # See section 7.2.2 of the datasheet for reset description.

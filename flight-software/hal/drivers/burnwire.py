@@ -7,12 +7,12 @@ Author: Harry Rosmann
 Date: March 28, 2024
 """
 
-from diagnostics import Diagnostics
+from diagnostics.diagnostics import Diagnostics
 import digitalio, pwmio
 from micropython import const
 import time
 
-class BurnWires:
+class BurnWires(Diagnostics):
     """
     The BurnWires class provides functionality for controlling burn wires.
 
@@ -62,6 +62,8 @@ class BurnWires:
         self.__burn_xm = self.__configure_burn_pin(burn_xm)
         self.__burn_yp = self.__configure_burn_pin(burn_yp)
         self.__burn_ym = self.__configure_burn_pin(burn_ym)
+
+        super().__init__()
 
     @property
     def frequency_hz(self):

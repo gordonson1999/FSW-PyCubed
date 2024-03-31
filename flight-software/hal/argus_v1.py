@@ -154,7 +154,7 @@ class ArgusV1(CubeSat):
         :return: Error code if the GPS failed to initialize
         """
         try:
-            gps = gps.AdafruitGPS(ArgusV1Components.GPS_UART,
+            gps = gps.GPS(ArgusV1Components.GPS_UART,
                                   ArgusV1Components.GPS_ENABLE)
             gps = GPSMiddleware(gps)
             super()._gps = gps

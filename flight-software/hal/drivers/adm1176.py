@@ -10,13 +10,10 @@ Implementation Notes
 --------------------
 
 """
-
 from micropython import const
 from adafruit_bus_device.i2c_device import I2CDevice
 
 from diagnostics.diagnostics import Diagnostics
-from middleware.middleware import DriverMiddleware
-from middleware.exceptions import battery_power_monitor_fatal_exception, jetson_power_monitor_fatal_exception
 
 def _to_signed(num):
     if num > 0x7FFF:

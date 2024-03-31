@@ -47,8 +47,6 @@ from micropython import const
 from diagnostics.diagnostics import Diagnostics
 import digitalio
 import time
-from middleware.middleware import DriverMiddleware
-from middleware.exceptions import gps_fatal_exception
 
 __version__ = "3.5.1"
 __repo__ = "https://github.com/adafruit/Adafruit_CircuitPython_GPS.git"

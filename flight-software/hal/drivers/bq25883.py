@@ -19,8 +19,6 @@ from adafruit_register.i2c_bits import ROBits, RWBits
 from adafruit_register.i2c_bit import ROBit, RWBit
 
 from diagnostics.diagnostics import Diagnostics
-from middleware.middleware import DriverMiddleware
-from middleware.exceptions import charger_fatal_exception
 
 # Registers
 _BATV_LIM       = const(0x00)
@@ -90,6 +88,8 @@ class BQ25883(Diagnostics):
         self.i2c_device = I2CDevice(i2c_bus, addr)
         self.i2c_addr = addr
         assert self._pn == 3, "Unable to find BQ25883"
+
+        super().__init__()
 
     @property
     def fault_status(self) -> int:

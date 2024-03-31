@@ -1,6 +1,6 @@
 import time
-
-import struct
+from diagnostics.diagnostics import Diagnostics
+import digitalio
 
 
 from adafruit_bus_device.i2c_device import I2CDevice
@@ -9,9 +9,6 @@ from micropython import const
 from adafruit_register.i2c_struct import Struct, UnaryStruct
 from adafruit_register.i2c_bits import ROBits, RWBits
 from adafruit_register.i2c_bit import ROBit, RWBit
-from middleware.middleware import DriverMiddleware
-
-from diagnostics import Diagnostics
 
 # Chip ID
 BMX160_CHIP_ID = const(0xD8)
@@ -364,7 +361,13 @@ class BMX160(Diagnostics):
         self.init_gyro()
         # print("status:", format_binary(self.status))
 
-        super().__init__(enable)
+        self.__enable = enable
+        if enable is not None:
+            self.__enable = digitalio.DigitalInOut(enable)
+            self.__enable.switch_to_output()
+            self.__enable = False
+
+        super().__init__(self.__enable)
 
     ######################## SENSOR API ########################
 

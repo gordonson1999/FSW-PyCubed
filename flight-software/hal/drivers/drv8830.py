@@ -50,7 +50,7 @@ from adafruit_register.i2c_bits import RWBits
 from adafruit_register.i2c_bit import RWBit
 from adafruit_register.i2c_bit import ROBit
 
-from diagnostics import Diagnostics
+from diagnostics.diagnostics import Diagnostics
 
 # DEVICE REGISTER MAP
 _CONTROL = 0x00  # Control Register      -W
