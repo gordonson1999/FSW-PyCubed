@@ -226,9 +226,6 @@ BMX160_FIFO_MA_LENGTH                = const(14)
 BMX160_FIFO_MG_LENGTH                = const(14)
 BMX160_FIFO_MGA_LENGTH               = const(20)
 
-# I2C address
-BMX160_I2C_ADDR            = const(0x68)
-# BMX160_I2C_ALT_ADDR        = const(0x69)  # alternate address
 # Interface settings
 BMX160_SPI_INTF            = const(1)
 BMX160_I2C_INTF            = const(0)
@@ -344,8 +341,14 @@ class BMX160(Diagnostics):
     _mag_odr = 25    # Hz
     _mag_range = 250 # deg/sec
 
+    def __init__(self, i2c, i2c_address, enable_pin = None):
+        if enable_pin is not None:
+            self._enable = digitalio.DigitalInOut(enable_pin)
+            self._enable.switch_to_output()
+            self.enable()
 
-    def __init__(self, enable):
+        self.i2c_device = I2CDevice(i2c, i2c_address, probe=True)
+
         # soft reset & reboot
         self.cmd = BMX160_SOFT_RESET_CMD
         time.sleep(0.001)
@@ -354,21 +357,34 @@ class BMX160(Diagnostics):
         if ID != BMX160_CHIP_ID:
             raise RuntimeError('Could not find BMX160, check wiring!')
 
-        # print("status:", format_binary(self.status))
         # set the default settings
         self.init_mag()
         self.init_accel()
         self.init_gyro()
-        # print("status:", format_binary(self.status))
 
-        self.__enable = enable
-        if enable is not None:
-            self.__enable = digitalio.DigitalInOut(enable)
-            self.__enable.switch_to_output()
-            self.__enable = False
+        if enable_pin is not None:
+            self.disable()
 
-        super().__init__(self.__enable)
+        super().__init__(self._enable)
 
+    ######################## I2C HELPERS ########################
+    def read_u8(self, address):
+        with self.i2c_device as i2c:
+            self._BUFFER[0] = address & 0xFF
+            i2c.write_then_readinto(self._BUFFER, self._BUFFER, out_end=1, in_start=1, in_end=2)
+        return self._BUFFER[1]
+
+    def read_bytes(self, address, count, buf):
+        with self.i2c_device as i2c:
+            buf[0] = address & 0xFF
+            i2c.write_then_readinto(buf, buf, out_end=1, in_end=count)
+        return buf
+
+    def write_u8(self, address, val):
+        with self.i2c_device as i2c:
+            self._BUFFER[0] = address & 0xFF
+            self._BUFFER[1] = val & 0xFF
+            i2c.write(self._BUFFER, end=2)
     ######################## SENSOR API ########################
 
     def read_all(self):
@@ -460,7 +476,6 @@ class BMX160(Diagnostics):
             self.GYR_SCALAR = (val / 32768.0)
         else:
             pass
-
 
     @property
     def gyro_odr(self):
@@ -657,7 +672,7 @@ class BMX160(Diagnostics):
         else:
             settingswarning(warning_interp)
 
-######################### DIAGNOSTICS #########################
+    ######################### DIAGNOSTICS #########################
             
     def __check_for_errors(self) -> list[int]:
         """_check_for_errors: Checks for any device errors on BMX160
@@ -700,48 +715,7 @@ class BMX160(Diagnostics):
 
         return error_list
 
-
-class BMX160_I2C(BMX160):
-    """Driver for the BMX160 connect over I2C."""
-
-    def __init__(self, i2c, enable = None):
-
-        # try:
-        self.i2c_device = I2CDevice(i2c, BMX160_I2C_ADDR, probe=True)
-        # except:
-        #     self.i2c_device = I2CDevice(i2c, BMX160_I2C_ALT_ADDR, probe=True)
-
-        super().__init__(enable)
-
-    def enable(self) -> None:
-        """Enable the GPS module through the enable pin
-        """
-        self.__enable = True
-
-    def disable(self) -> None:
-        """Disable the GPS module through the enable pin
-        """
-        self.__enable = False
-
-    def read_u8(self, address):
-        with self.i2c_device as i2c:
-            self._BUFFER[0] = address & 0xFF
-            i2c.write_then_readinto(self._BUFFER, self._BUFFER, out_end=1, in_start=1, in_end=2)
-        return self._BUFFER[1]
-
-    def read_bytes(self, address, count, buf):
-        with self.i2c_device as i2c:
-            buf[0] = address & 0xFF
-            i2c.write_then_readinto(buf, buf, out_end=1, in_end=count)
-        return buf
-
-    def write_u8(self, address, val):
-        with self.i2c_device as i2c:
-            self._BUFFER[0] = address & 0xFF
-            self._BUFFER[1] = val & 0xFF
-            i2c.write(self._BUFFER, end=2)
-
-# GENERIC UTILS:
+######################### UTILS #########################
 
 def find_nearest_valid(desired, possible_values):
     # NOTE: assumes `possible_values` is sorted in decreasing order

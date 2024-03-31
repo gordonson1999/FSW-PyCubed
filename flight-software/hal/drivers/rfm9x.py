@@ -231,7 +231,7 @@ class RFM9x(Diagnostics):
         self,
         spi,
         cs,
-        reset,
+        enable,
         frequency,
         *,
         preamble_length=8,
@@ -250,8 +250,8 @@ class RFM9x(Diagnostics):
         # to the datasheet).  This line is pulled low as an output quickly to
         # trigger a reset.  Note that reset MUST be done like this and set as
         # a high impedence input or else the chip cannot change modes (trust me!).
-        self._reset = reset
-        self._reset.switch_to_input(pull=digitalio.Pull.UP)
+        self._enable = enable
+        self._enable.switch_to_input(pull=digitalio.Pull.UP)
         self.reset()
         # No device type check!  Catch an error from the very first request and
         # throw a nicer message to indicate possible wiring problems.
@@ -356,7 +356,7 @@ class RFM9x(Diagnostics):
         self.pa_ramp=0   # mode agnostic
         self.lna_boost=3 # mode agnostic
 
-        super().__init__(self._reset)
+        super().__init__(self._enable)
 
     def cw(self,msg=None):
         success=False
@@ -458,13 +458,18 @@ class RFM9x(Diagnostics):
             self._BUFFER[1] = val & 0xFF
             device.write(self._BUFFER, end=2)
 
-    #### OVERRIDE function of Diagnostics
+    def enable(self):
+        self._enable.switch_to_input(pull=digitalio.Pull.UP)
+
+    def disable(self)
+        self._enable.switch_to_output(value=False)
+
     def reset(self):
         """Perform a reset of the chip."""
         # See section 7.2.2 of the datasheet for reset description.
-        self._reset.switch_to_output(value=False)
+        self.disable()
         time.sleep(0.0001)  # 100 us
-        self._reset.switch_to_input(pull=digitalio.Pull.UP)
+        self.enable()
         time.sleep(0.005)  # 5 ms
 
     def idle(self):

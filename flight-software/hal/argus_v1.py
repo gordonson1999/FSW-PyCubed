@@ -38,9 +38,9 @@ class ArgusV1Interfaces:
     UART1_RX    = board.RX
     UART1       = busio.UART(UART1_TX, UART1_RX, baudrate=UART_BAUD)
 
-    # UART2_TX2   = board.JET_TX2
-    # UART2_RX2   = board.JET_RX2
-    # UART2       = busio.UART(board.JET_TX2, board.JET_RX2, baudrate=UART_BAUD)
+    UART2_TX2   = board.JET_TX2
+    UART2_RX2   = board.JET_RX2
+    UART2       = busio.UART(UART2_TX2, UART2_RX2, baudrate=UART_BAUD)
 
 class ArgusV1Components:
     """
@@ -160,7 +160,7 @@ class ArgusV1(CubeSat):
         """
         try:
             gps1 = gps.GPS(ArgusV1Components.GPS_UART,
-                                  ArgusV1Components.GPS_ENABLE)
+                           ArgusV1Components.GPS_ENABLE)
             
             if self.__middleware_enabled:
                 gps1 = Middleware(gps1, gps_fatal_exception)
@@ -550,16 +550,21 @@ class ArgusV1(CubeSat):
 
     def run_system_diagnostics(self) -> list[int] | None:
         """run_diagnostic_test: Run all diagnostics across all components
+
+        :return: A list of error codes if any errors are present
         """
         error_list: list[int] = []
 
         for device in self.device_list:
             try:
+                # Enable the devices that are resetable
                 if device.resetable:
                     device.enable()
                     
+                # Concancate the error list from running diagnostics
                 error_list += device.run_diagnostics()
 
+                # Disable the devices that are resetable
                 if device.resetable:
                     device.disable()
             except Exception:

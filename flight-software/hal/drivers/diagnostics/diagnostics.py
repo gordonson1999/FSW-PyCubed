@@ -81,9 +81,8 @@ class Diagnostics:
     __ERROR_MIN                                     = const(0)
     __ERROR_MAX                                     = const(39)
 
-    def __init__(self, enable = None) -> None:
-        self.__enable = enable
-
+    def __init__(self, enable) -> None:
+        self._enable = enable
         self.errors_present = False
 
     def error_present(self) -> bool:
@@ -98,26 +97,26 @@ class Diagnostics:
     def resetable(self):
         """resetable: Check if the component is resetable
         """
-        return self.__enable is not None
+        return self._enable is not None
     
     def reset(self) -> None:
         """reset: Reset the component by quickly turning off and on
         """
-        if self.__enable is not None:
-            self.__enable.value = False
-            self.__enable.value = True
+        if self._enable is not None:
+            self._enable.value = False
+            self._enable.value = True
 
     def enable(self):
         """enable: Enable the component
         """
-        if self.__enable is not None:
-            raise NotImplementedError("Subclasses must implement enable method")
+        if self._enable is not None:
+            self._enable.value = True
     
     def disable(self):
         """disable: Disable the component
         """
-        if self.__enable is not None:
-            raise NotImplementedError("Subclasses must implement disable method")
+        if self._enable is not None:
+            self._enable.value = False
 
     @staticmethod
     def convert_errors_to_byte_array(errors: list[int]) -> bytes:
@@ -139,7 +138,7 @@ class Diagnostics:
             if error < Diagnostics.__ERROR_MIN or error > Diagnostics.__ERROR_MAX:
                 raise RuntimeError(f"Unrecognized error number ({error})")
             
-            # NOTE: We do want to track if there is no error
+            # NOTE: We DO want to track if there is no error
 
             byte_num = error / BITS_IN_BYTE
 

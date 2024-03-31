@@ -88,7 +88,7 @@ class GPS(Diagnostics):
     """GPS parsing module.  Can parse simple NMEA data sentences from serial
     GPS modules to read latitude, longitude, and more.
     """
-    def __init__(self, uart, en=None, debug=False):
+    def __init__(self, uart, enable=None, debug=False):
         self._uart = uart
         # Initialize null starting values for GPS attributes.
         self.timestamp_utc = None
@@ -117,13 +117,14 @@ class GPS(Diagnostics):
         self._raw_sentence = None
         self.debug = debug
 
-        self.__enable = en
-        if en is not None:
-            self.__enable = digitalio.DigitalInOut(en)
-            self.__enable.switch_to_output()
-            self.__enable = False
+        # Don't care to enable the GPS module during initialization
+        self._enable = enable
+        if self._enable is not None:
+            self._enable = digitalio.DigitalInOut(enable)
+            self._enable.switch_to_output()
+            self._enable = False
 
-        super().__init__(self.__enable)
+        super().__init__(self._enable)
 
     def update(self):
         """Check for updated data from the GPS module and process it
