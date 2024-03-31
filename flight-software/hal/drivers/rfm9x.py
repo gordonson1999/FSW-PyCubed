@@ -461,7 +461,7 @@ class RFM9x(Diagnostics):
     def enable(self):
         self._enable.switch_to_input(pull=digitalio.Pull.UP)
 
-    def disable(self)
+    def disable(self):
         self._enable.switch_to_output(value=False)
 
     def reset(self):
