@@ -25,4 +25,5 @@ try:
 except Exception as e:
     print(e)
     # TODO Log the error
+    # Reset
 

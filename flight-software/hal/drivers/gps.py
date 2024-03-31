@@ -26,7 +26,7 @@
 GPS parsing module.  Can parse simple NMEA data sentences from serial GPS
 modules to read latitude, longitude, and more.
 
-* Author(s): Tony DiCola
+* Author(s): Tony DiCola, Harry Rosmann
 
 Implementation Notes
 --------------------
@@ -44,9 +44,11 @@ Implementation Notes
 """
 import time
 from micropython import const
-from diagnostics import Diagnostics
+from diagnostics.diagnostics import Diagnostics
 import digitalio
 import time
+from middleware.middleware import DriverMiddleware
+from middleware.exceptions import gps_fatal_exception
 
 __version__ = "3.5.1"
 __repo__ = "https://github.com/adafruit/Adafruit_CircuitPython_GPS.git"
@@ -84,8 +86,6 @@ def _parse_str(nmea_data):
 
 # lint warning about too many attributes disabled
 #pylint: disable-msg=R0902
-
-
 class GPS(Diagnostics):
     """GPS parsing module.  Can parse simple NMEA data sentences from serial
     GPS modules to read latitude, longitude, and more.
@@ -119,12 +119,13 @@ class GPS(Diagnostics):
         self._raw_sentence = None
         self.debug = debug
 
-        self.__enable = None
-
+        self.__enable = en
         if en is not None:
             self.__enable = digitalio.DigitalInOut(en)
             self.__enable.switch_to_output()
             self.__enable = False
+
+        super().__init__(self.__enable)
 
     def update(self):
         """Check for updated data from the GPS module and process it
@@ -463,7 +464,7 @@ class GPS(Diagnostics):
         """
         self.__enable = False
     
-######################### DIAGNOSTICS #########################
+    ######################### DIAGNOSTICS #########################
 
     def __check_for_updates(self) -> int:
         """_check_for_errors: Checks for an update on the GPS
@@ -481,7 +482,7 @@ class GPS(Diagnostics):
             
             time.sleep(1)
 
-        return Diagnostics.ADAFRUIT_GPS_UPDATE_CHECK_FAILED
+        return Diagnostics.GPS_UPDATE_CHECK_FAILED
     
     def run_diagnostics(self) -> list[int] | None:
         """run_diagnostic_test: Run all tests for the component

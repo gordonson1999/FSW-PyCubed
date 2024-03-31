@@ -9,8 +9,9 @@ from micropython import const
 import board
 import sdcardio
 
-from drivers.diagnostics import Diagnostics
-from drivers import pcf8523, rfm9x, adm1176, bq25883, opt4001, adafruit_gps, bmx160, drv8830, burnwire
+from drivers.diagnostics.diagnostics import Diagnostics
+from drivers import pcf8523, rfm9x, adm1176, bq25883, opt4001, gps, bmx160, drv8830, burnwire
+from hal.drivers.middleware.middleware import *
 
 class ArgusV1Interfaces:
     """
@@ -101,7 +102,7 @@ class ArgusV1Components:
     SD_BAUD                                 = const(4000000) # 4 MHz
 
     # BURN WIRES
-    BURN_WIRE_ENABEL                        = board.RELAY_A
+    BURN_WIRE_ENABLE                        = board.RELAY_A
     BURN_WIRE_XP                            = board.BURN1
     BURN_WIRE_XM                            = board.BURN2
     BURN_WIRE_YP                            = board.BURN3
@@ -153,11 +154,13 @@ class ArgusV1(CubeSat):
         :return: Error code if the GPS failed to initialize
         """
         try:
-            gps = adafruit_gps.AdafruitGPS(ArgusV1Components.GPS_UART, ArgusV1Components.GPS_ENABLE)
+            gps = gps.AdafruitGPS(ArgusV1Components.GPS_UART,
+                                  ArgusV1Components.GPS_ENABLE)
+            gps = GPSMiddleware(gps)
             super()._gps = gps
             super()._device_list.append(gps)
         except Exception:
-            return Diagnostics.ADAFRUIT_GPS_NOT_INITIALIZED
+            return Diagnostics.GPS_NOT_INITIALIZED
         
         return Diagnostics.NOERROR
     
@@ -167,7 +170,9 @@ class ArgusV1(CubeSat):
         :return: Error code if the battery power monitor failed to initialize
         """
         try:
-            battery_monitor = adm1176.ADM1176(ArgusV1Components.BATTERY_POWER_MONITOR_I2C, ArgusV1Components.BATTERY_POWER_MONITOR_I2C_ADDRESS)
+            battery_monitor = adm1176.ADM1176(ArgusV1Components.BATTERY_POWER_MONITOR_I2C,
+                                              ArgusV1Components.BATTERY_POWER_MONITOR_I2C_ADDRESS)
+            battery_monitor = BatteryPowerMonitorMiddleware(battery_monitor)
             super()._battery_monitor = battery_monitor
             super()._device_list.append(battery_monitor)
         except Exception:
@@ -181,7 +186,9 @@ class ArgusV1(CubeSat):
         :return: Error code if the Jetson power monitor failed to initialize
         """
         try:
-            jetson_monitor = adm1176.ADM1176(ArgusV1Components.JETSON_POWER_MONITOR_I2C, ArgusV1Components.JETSON_POWER_MONITOR_I2C_ADDRESS)
+            jetson_monitor = adm1176.ADM1176(ArgusV1Components.JETSON_POWER_MONITOR_I2C,
+                                             ArgusV1Components.JETSON_POWER_MONITOR_I2C_ADDRESS)
+            jetson_monitor = JetsonPowerMonitorMiddleware(jetson_monitor)
             super()._jetson_monitor = jetson_monitor
             super()._device_list.append(jetson_monitor)
         except Exception:
@@ -195,7 +202,10 @@ class ArgusV1(CubeSat):
         :return: Error code if the IMU failed to initialize
         """
         try:
-            imu = bmx160.BMX160(ArgusV1Components.IMU_I2C, ArgusV1Components.IMU_I2C_ADDRESS, ArgusV1Components.IMU_ENABLE)
+            imu = bmx160.BMX160(ArgusV1Components.IMU_I2C,
+                                ArgusV1Components.IMU_I2C_ADDRESS,
+                                ArgusV1Components.IMU_ENABLE)
+            imu = IMUMiddleware(imu)
             super()._imu = imu
             super()._device_list.append(imu)
         except Exception:
@@ -209,7 +219,9 @@ class ArgusV1(CubeSat):
         :return: Error code if the charger failed to initialize
         """
         try:
-            charger = bq25883.BQ25883(ArgusV1Components.CHARGER_I2C, ArgusV1Components.CHARGER_I2C_ADDRESS)
+            charger = bq25883.BQ25883(ArgusV1Components.CHARGER_I2C,
+                                      ArgusV1Components.CHARGER_I2C_ADDRESS)
+            charger = ChargerMiddleware(charger)
             super()._charger = charger
             super()._device_list.append(charger)
         except Exception:
@@ -223,7 +235,9 @@ class ArgusV1(CubeSat):
         :return: Error code if the torque driver failed to initialize
         """
         try:
-            torque_xp = drv8830.DRV8830(ArgusV1Components.TORQUE_COILS_I2C, ArgusV1Components.TORQUE_XP_I2C_ADDRESS)
+            torque_xp = drv8830.DRV8830(ArgusV1Components.TORQUE_COILS_I2C,
+                                        ArgusV1Components.TORQUE_XP_I2C_ADDRESS)
+            torque_xp = TorqueXPMiddleware(torque_xp)
             super()._torque_xp = torque_xp
             super()._device_list.append(torque_xp)
         except Exception:
@@ -237,7 +251,9 @@ class ArgusV1(CubeSat):
         :return: Error code if the torque driver failed to initialize
         """
         try:
-            torque_xm = drv8830.DRV8830(ArgusV1Components.TORQUE_COILS_I2C, ArgusV1Components.TORQUE_XM_I2C_ADDRESS)
+            torque_xm = drv8830.DRV8830(ArgusV1Components.TORQUE_COILS_I2C,
+                                        ArgusV1Components.TORQUE_XM_I2C_ADDRESS)
+            torque_xm = TorqueXMMiddleware(torque_xm)
             super()._torque_xm = torque_xm
             super()._device_list.append(torque_xm)
         except Exception:
@@ -251,7 +267,9 @@ class ArgusV1(CubeSat):
         :return: Error code if the torque driver failed to initialize
         """
         try:
-            torque_yp = drv8830.DRV8830(ArgusV1Components.TORQUE_COILS_I2C, ArgusV1Components.TORQUE_YP_I2C_ADDRESS)
+            torque_yp = drv8830.DRV8830(ArgusV1Components.TORQUE_COILS_I2C,
+                                        ArgusV1Components.TORQUE_YP_I2C_ADDRESS)
+            torque_yp = TorqueYPMiddleware(torque_yp)
             super()._torque_yp = torque_yp
             super()._device_list.append(torque_yp)
         except Exception:
@@ -265,7 +283,9 @@ class ArgusV1(CubeSat):
         :return: Error code if the torque driver failed to initialize
         """
         try:
-            torque_ym = drv8830.DRV8830(ArgusV1Components.TORQUE_COILS_I2C, ArgusV1Components.TORQUE_YM_I2C_ADDRESS)
+            torque_ym = drv8830.DRV8830(ArgusV1Components.TORQUE_COILS_I2C,
+                                        ArgusV1Components.TORQUE_YM_I2C_ADDRESS)
+            torque_ym = TorqueYMMiddleware(torque_ym)
             super()._torque_ym = torque_ym
             super()._device_list.append(torque_ym)
         except Exception:
@@ -279,7 +299,9 @@ class ArgusV1(CubeSat):
         :return: Error code if the torque driver failed to initialize
         """
         try:
-            torque_z = drv8830.DRV8830(ArgusV1Components.TORQUE_COILS_I2C, ArgusV1Components.TORQUE_Z_I2C_ADDRESS)
+            torque_z = drv8830.DRV8830(ArgusV1Components.TORQUE_COILS_I2C,
+                                       ArgusV1Components.TORQUE_Z_I2C_ADDRESS)
+            torque_z = TorqueZMiddleware(torque_z)
             super()._torque_z = torque_z
             super()._device_list.append(torque_z)
         except Exception:
@@ -293,7 +315,9 @@ class ArgusV1(CubeSat):
         :return: Error code if the sun sensor failed to initialize
         """
         try:
-            sun_sensor_xp = opt4001.OPT4001(ArgusV1Components.SUN_SENSORS_I2C, ArgusV1Components.SUN_SENSOR_XP_I2C_ADDRESS)
+            sun_sensor_xp = opt4001.OPT4001(ArgusV1Components.SUN_SENSORS_I2C,
+                                            ArgusV1Components.SUN_SENSOR_XP_I2C_ADDRESS)
+            sun_sensor_xp = SunSensorXPMiddleware(sun_sensor_xp)
             super()._sun_sensor_xp = sun_sensor_xp
             super()._device_list.append(sun_sensor_xp)
         except Exception:
@@ -307,7 +331,9 @@ class ArgusV1(CubeSat):
         :return: Error code if the sun sensor failed to initialize
         """
         try:
-            sun_sensor_xm = opt4001.OPT4001(ArgusV1Components.SUN_SENSORS_I2C, ArgusV1Components.SUN_SENSOR_XM_I2C_ADDRESS)
+            sun_sensor_xm = opt4001.OPT4001(ArgusV1Components.SUN_SENSORS_I2C,
+                                            ArgusV1Components.SUN_SENSOR_XM_I2C_ADDRESS)
+            sun_sensor_xm = SunSensorXMMiddleware(sun_sensor_xm)
             super()._sun_sensor_xm = sun_sensor_xm
             super()._device_list.append(sun_sensor_xm)
         except Exception:
@@ -321,7 +347,9 @@ class ArgusV1(CubeSat):
         :return: Error code if the sun sensor failed to initialize
         """
         try:
-            sun_sensor_yp = opt4001.OPT4001(ArgusV1Components.SUN_SENSORS_I2C, ArgusV1Components.SUN_SENSOR_YP_I2C_ADDRESS)
+            sun_sensor_yp = opt4001.OPT4001(ArgusV1Components.SUN_SENSORS_I2C, 
+                                            ArgusV1Components.SUN_SENSOR_YP_I2C_ADDRESS)
+            sun_sensor_yp = SunSensorYPMiddleware(sun_sensor_yp)
             super()._sun_sensor_yp = sun_sensor_yp
             super()._device_list.append(sun_sensor_yp)
         except Exception:
@@ -335,7 +363,9 @@ class ArgusV1(CubeSat):
         :return: Error code if the sun sensor failed to initialize
         """
         try:
-            sun_sensor_ym = opt4001.OPT4001(ArgusV1Components.SUN_SENSORS_I2C, ArgusV1Components.SUN_SENSOR_YM_I2C_ADDRESS)
+            sun_sensor_ym = opt4001.OPT4001(ArgusV1Components.SUN_SENSORS_I2C, 
+                                            ArgusV1Components.SUN_SENSOR_YM_I2C_ADDRESS)
+            sun_sensor_ym = SunSensorYMMiddleware(sun_sensor_ym)
             super()._sun_sensor_ym = sun_sensor_ym
             super()._device_list.append(sun_sensor_ym)
         except Exception:
@@ -349,7 +379,9 @@ class ArgusV1(CubeSat):
         :return: Error code if the sun sensor failed to initialize
         """
         try:
-            sun_sensor_zp = opt4001.OPT4001(ArgusV1Components.SUN_SENSORS_I2C, ArgusV1Components.SUN_SENSOR_ZP_I2C_ADDRESS)
+            sun_sensor_zp = opt4001.OPT4001(ArgusV1Components.SUN_SENSORS_I2C, 
+                                            ArgusV1Components.SUN_SENSOR_ZP_I2C_ADDRESS)
+            sun_sensor_zp = SunSensorZPMiddleware(sun_sensor_zp)
             super()._sun_sensor_zp = sun_sensor_zp
             super()._device_list.append(sun_sensor_zp)
         except Exception:
@@ -363,7 +395,9 @@ class ArgusV1(CubeSat):
         :return: Error code if the sun sensor failed to initialize
         """
         try:
-            sun_sensor_zm = opt4001.OPT4001(ArgusV1Components.SUN_SENSORS_I2C, ArgusV1Components.SUN_SENSOR_ZM_I2C_ADDRESS)
+            sun_sensor_zm = opt4001.OPT4001(ArgusV1Components.SUN_SENSORS_I2C, 
+                                            ArgusV1Components.SUN_SENSOR_ZM_I2C_ADDRESS)
+            sun_sensor_zm = SunSensorZMMiddleware(sun_sensor_zm)
             super()._sun_sensor_zm = sun_sensor_zm
             super()._device_list.append(sun_sensor_zm)
         except Exception:
@@ -377,7 +411,11 @@ class ArgusV1(CubeSat):
         :return: Error code if the radio failed to initialize
         """
         try:
-            radio = rfm9x.RFM9x(ArgusV1Components.RADIO_SPI, ArgusV1Components.RADIO_CS, ArgusV1Components.RADIO_RESET, ArgusV1Components.RADIO_FREQ)
+            radio = rfm9x.RFM9x(ArgusV1Components.RADIO_SPI, 
+                                ArgusV1Components.RADIO_CS, 
+                                ArgusV1Components.RADIO_RESET, 
+                                ArgusV1Components.RADIO_FREQ)
+            radio = RadioMiddleware(radio)
             super()._radio = radio
             super()._device_list.append(radio)
         except Exception:
@@ -392,6 +430,7 @@ class ArgusV1(CubeSat):
         """
         try:
             rtc = pcf8523.PCF8523(ArgusV1Interfaces.I2C1)
+            rtc = RTC_Middleware(rtc)
             super()._rtc = rtc
             super()._device_list.append(rtc)
         except Exception:
@@ -403,7 +442,9 @@ class ArgusV1(CubeSat):
         """neopixel_boot: Boot sequence for the neopixel
         """
         try:
-            neopixel = neopixel.NeoPixel(ArgusV1Components.NEOPIXEL_SDA, brightness=ArgusV1Components.NEOPIXEL_BRIGHTNESS, pixel_order=neopixel.GRB)
+            neopixel = neopixel.NeoPixel(ArgusV1Components.NEOPIXEL_SDA,
+                                         brightness=ArgusV1Components.NEOPIXEL_BRIGHTNESS,
+                                         pixel_order=neopixel.GRB)
             super()._neopixel = neopixel
             super()._device_list.append(neopixel)
         except Exception:
@@ -415,7 +456,9 @@ class ArgusV1(CubeSat):
         """sd_card_boot: Boot sequence for the SD card
         """
         try:
-            sd_card = sdcardio.SDCard(ArgusV1Components.SD_CARD_SPI, ArgusV1Components.SD_CARD_CS, ArgusV1Components.SD_BAUD)
+            sd_card = sdcardio.SDCard(ArgusV1Components.SD_CARD_SPI,
+                                      ArgusV1Components.SD_CARD_CS,
+                                      ArgusV1Components.SD_BAUD)
             super()._sd_card = sd_card
             super()._device_list.append(sd_card)
         except Exception:
@@ -427,7 +470,12 @@ class ArgusV1(CubeSat):
         """burn_wire_boot: Boot sequence for the burn wires
         """
         try:
-            burn_wires = burnwire.BurnWires(ArgusV1Components.BURN_WIRE_ENABEL, ArgusV1Components.BURN_WIRE_XP, ArgusV1Components.BURN_WIRE_XM, ArgusV1Components.BURN_WIRE_YP, ArgusV1Components.BURN_WIRE_YM)
+            burn_wires = burnwire.BurnWires(ArgusV1Components.BURN_WIRE_ENABLE,
+                                            ArgusV1Components.BURN_WIRE_XP,
+                                            ArgusV1Components.BURN_WIRE_XM,
+                                            ArgusV1Components.BURN_WIRE_YP,
+                                            ArgusV1Components.BURN_WIRE_YM)
+            burn_wires = BurnWireMiddleware(burn_wires)
             super()._burn_wires = burn_wires
             super()._device_list.append(burn_wires)
         except Exception:

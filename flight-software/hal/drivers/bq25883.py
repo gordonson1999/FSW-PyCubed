@@ -4,7 +4,7 @@
 
 CircuitPython driver for the BQ25883 2-cell USB boost-mode charger.
 
-* Author(s): Max Holliday
+* Author(s): Max Holliday, Harry Rosmann
 
 Implementation Notes
 --------------------
@@ -18,7 +18,9 @@ from adafruit_register.i2c_struct import ROUnaryStruct, UnaryStruct
 from adafruit_register.i2c_bits import ROBits, RWBits
 from adafruit_register.i2c_bit import ROBit, RWBit
 
-from diagnostics import Diagnostics
+from diagnostics.diagnostics import Diagnostics
+from middleware.middleware import DriverMiddleware
+from middleware.exceptions import charger_fatal_exception
 
 # Registers
 _BATV_LIM       = const(0x00)

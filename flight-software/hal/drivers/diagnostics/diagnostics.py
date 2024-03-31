@@ -1,10 +1,9 @@
 """
 diagnostics.py
 
-This file contains the base class for alll components which need diagnostic tests run
+This file contains the base class for all components which need diagnostic tests run
 
 Author: Harry Rosmann
-Date: 03/26/2024
 """
 
 from micropython import const
@@ -42,8 +41,8 @@ class Diagnostics:
     OPT4001_ID_CHECK_FAILED                         = const(17)
     
     # Adafruit GPS errors
-    ADAFRUIT_GPS_NOT_INITIALIZED                    = const(18)
-    ADAFRUIT_GPS_UPDATE_CHECK_FAILED                = const(19)
+    GPS_NOT_INITIALIZED                    = const(18)
+    GPS_UPDATE_CHECK_FAILED                = const(19)
     
     # PCF8523 errors
     PCF8523_NOT_INITIALIZED                         = const(20)
@@ -82,7 +81,9 @@ class Diagnostics:
     __ERROR_MIN                                     = const(0)
     __ERROR_MAX                                     = const(39)
 
-    def __init__(self):
+    def __init__(self, enable = None) -> None:
+        self.__enable = enable
+
         self.__errors_present = False
 
     def error_present(self) -> bool:
@@ -92,6 +93,19 @@ class Diagnostics:
         """run_diagnostic_test: Run all tests for the component
         """
         raise NotImplementedError("Subclasses must implement run_diagnostic_test method")
+    
+    @property
+    def resetable(self):
+        """resetable: Check if the component is resetable
+        """
+        return self.__enable is not None
+    
+    def reset(self) -> None:
+        """reset: Reset the component by quickly turning off and on
+        """
+        if self.__enable is not None:
+            self.__enable.value = False
+            self.__enable.value = True
 
     @staticmethod
     def convert_errors_to_byte_array(errors: list[int]) -> bytes:

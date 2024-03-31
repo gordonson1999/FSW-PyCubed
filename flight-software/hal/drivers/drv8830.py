@@ -292,6 +292,8 @@ class DRV8830(Diagnostics):
             errors.append(Diagnostics.DRV8830_OVERTEMPERATURE_CONDITION)
         if ("ILIMIT" in faults):
             errors.append(Diagnostics.DRV8830_EXTENDED_CURRENT_LIMIT_EVENT)
+
+        self.clear_faults()
         
         return errors
     
@@ -301,14 +303,6 @@ class DRV8830(Diagnostics):
 
         :return: true if test passes, false if fails
         """
-        # throttle_val = self._device.throttle
-        # print(throttle_val)
-        # if throttle_val is not None:
-        #     if (throttle_val < -1.0) or (throttle_val > 1.0):
-        #         print("ERROR: Throttle value outside of settled range")
-        #         success = False
-        #         return success
-            
         throttle_volts_val = self.throttle_volts
         print(throttle_volts_val)
         if throttle_volts_val is not None:

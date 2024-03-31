@@ -9,8 +9,8 @@ from micropython import const
 from adafruit_register.i2c_struct import Struct, UnaryStruct
 from adafruit_register.i2c_bits import ROBits, RWBits
 from adafruit_register.i2c_bit import ROBit, RWBit
+from middleware.middleware import DriverMiddleware
 
-import digitalio
 from diagnostics import Diagnostics
 
 # Chip ID
@@ -348,7 +348,7 @@ class BMX160(Diagnostics):
     _mag_range = 250 # deg/sec
 
 
-    def __init__(self):
+    def __init__(self, enable):
         # soft reset & reboot
         self.cmd = BMX160_SOFT_RESET_CMD
         time.sleep(0.001)
@@ -364,7 +364,7 @@ class BMX160(Diagnostics):
         self.init_gyro()
         # print("status:", format_binary(self.status))
 
-        super().__init__()
+        super().__init__(enable)
 
     ######################## SENSOR API ########################
 
@@ -701,20 +701,14 @@ class BMX160(Diagnostics):
 class BMX160_I2C(BMX160):
     """Driver for the BMX160 connect over I2C."""
 
-    def __init__(self, i2c, enable_pin = None):
+    def __init__(self, i2c, enable = None):
 
         # try:
         self.i2c_device = I2CDevice(i2c, BMX160_I2C_ADDR, probe=True)
         # except:
         #     self.i2c_device = I2CDevice(i2c, BMX160_I2C_ALT_ADDR, probe=True)
 
-        self.__enable = None
-        if enable_pin is not None:
-            self.__enable = digitalio.DigitalInOut(enable_pin)
-            self.__enable.switch_to_output()
-            self.__enable = False
-
-        super().__init__()
+        super().__init__(enable)
 
     def enable(self) -> None:
         """Enable the GPS module through the enable pin
@@ -744,34 +738,6 @@ class BMX160_I2C(BMX160):
             self._BUFFER[1] = val & 0xFF
             i2c.write(self._BUFFER, end=2)
 
-
-# class BMX160_SPI(BMX160):
-#     """Driver for the BMX160 connect over SPI."""
-#     def __init__(self, spi, cs):
-#         self.i2c_device = SPIDevice(spi, cs)
-#         super().__init__()
-
-#     def read_u8(self, address):
-#         with self.i2c_device as spi:
-#             self._BUFFER[0] = (address | 0x80) & 0xFF
-#             spi.write(self._BUFFER, end=1)
-#             spi.readinto(self._BUFFER, end=1)
-#         return self._BUFFER[0]
-
-#     def read_bytes(self, address, count, buf):
-#         with self.i2c_device as spi:
-#             buf[0] = (address | 0x80) & 0xFF
-#             spi.write(buf, end=1)
-#             spi.readinto(buf, end=count)
-#         return buf
-
-#     def write_u8(self, address, val):
-#         with self.i2c_device as spi:
-#             self._BUFFER[0] = (address & 0x7F) & 0xFF
-#             self._BUFFER[1] = val & 0xFF
-#             spi.write(self._BUFFER, end=2)
-
-
 # GENERIC UTILS:
 
 def find_nearest_valid(desired, possible_values):
@@ -794,3 +760,5 @@ def settingswarning(interp = ""):
 
 def format_binary(b):
     return '{:0>8}'.format(bin(b)[2:])
+
+
