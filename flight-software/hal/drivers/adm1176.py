@@ -13,7 +13,7 @@ Implementation Notes
 from micropython import const
 from adafruit_bus_device.i2c_device import I2CDevice
 
-from diagnostics.diagnostics import Diagnostics
+from .diagnostics.diagnostics import Diagnostics
 
 def _to_signed(num):
     if num > 0x7FFF:
@@ -285,6 +285,6 @@ class ADM1176(Diagnostics):
         error_list = list(set(error_list))
 
         if not Diagnostics.NOERROR in error_list:
-            super().__errors_present = True
+            self.errors_present = True
 
         return error_list

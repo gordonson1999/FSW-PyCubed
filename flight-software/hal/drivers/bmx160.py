@@ -1,5 +1,5 @@
 import time
-from diagnostics.diagnostics import Diagnostics
+from .diagnostics.diagnostics import Diagnostics
 import digitalio
 
 
@@ -696,7 +696,7 @@ class BMX160(Diagnostics):
         error_list = list(set(error_list))
 
         if not Diagnostics.NOERROR in error_list:
-            super().__errors_present = True
+            self.errors_present = True
 
         return error_list
 

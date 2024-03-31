@@ -52,7 +52,7 @@ from adafruit_register import i2c_bits
 from adafruit_register import i2c_bcd_alarm
 from adafruit_register import i2c_bcd_datetime
 
-from diagnostics.diagnostics import Diagnostics
+from .diagnostics.diagnostics import Diagnostics
 
 try:
     import typing  # noqa: F401
@@ -101,6 +101,8 @@ class PCF8523(Diagnostics):
             current_time = rtc.datetime
 
     """
+
+    ## TODO: Convert all of these i2c bits to properties so that Middlware can catch them
 
     lost_power = i2c_bit.RWBit(0x03, 7)
     """True if the device has lost power since the time was set."""
@@ -221,6 +223,6 @@ class PCF8523(Diagnostics):
         error_list = list(set(error_list))
 
         if not Diagnostics.NOERROR in error_list:
-            super().__errors_present = True
+            self.errors_present = True
 
         return error_list

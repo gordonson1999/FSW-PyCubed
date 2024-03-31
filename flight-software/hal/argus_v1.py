@@ -4,14 +4,15 @@ Author: Harry
 Description: This file contains the definition of the ArgusV1 class and its associated interfaces and components.
 """
 import busio
-from cubesat import CubeSat
+from hal.cubesat import CubeSat
 from micropython import const
 import board
 import sdcardio
 
-from drivers.diagnostics.diagnostics import Diagnostics
-from drivers import pcf8523, rfm9x, adm1176, bq25883, opt4001, gps, bmx160, drv8830, burnwire
+from hal.drivers.diagnostics.diagnostics import Diagnostics
+from hal.drivers import pcf8523, rfm9x, adm1176, bq25883, opt4001, gps, bmx160, drv8830, burnwire
 from hal.drivers.middleware.middleware import *
+from hal.drivers.middleware.exceptions import *
 
 class ArgusV1Interfaces:
     """
@@ -35,11 +36,11 @@ class ArgusV1Interfaces:
 
     UART1_TX    = board.TX
     UART1_RX    = board.RX
-    UART1       = busio.UART(UART1_TX, UART1_RX, baudrate =UART_BAUD)
+    UART1       = busio.UART(UART1_TX, UART1_RX, baudrate=UART_BAUD)
 
-    UART2_TX2   = board.JET_TX2
-    UART2_RX2   = board.JET_RX2
-    UART2       = busio.UART(UART2_TX2, UART2_RX2, baudrate=UART_BAUD)
+    # UART2_TX2   = board.JET_TX2
+    # UART2_RX2   = board.JET_RX2
+    # UART2       = busio.UART(board.JET_TX2, board.JET_RX2, baudrate=UART_BAUD)
 
 class ArgusV1Components:
     """
@@ -50,7 +51,7 @@ class ArgusV1Components:
     """
 
     # GPS
-    GPS_UART                                = board.GPS_UART
+    GPS_UART                                = ArgusV1Interfaces.UART1
     GPS_ENABLE                              = board.EN_GPS
 
     # BATTERY POWER MONITOR
@@ -113,7 +114,9 @@ class ArgusV1Components:
     NEOPIXEL_BRIGHTNESS                     = const(0.2)
 
 class ArgusV1(CubeSat):
-    def __init__(self):
+    def __init__(self, enable_middleware: bool):
+        self.__middleware_enabled = enable_middleware
+
         super().__init__()
 
     ######################## BOOT SEQUENCE ########################
@@ -146,6 +149,8 @@ class ArgusV1(CubeSat):
 
         error_list = [error for error in error_list if error != Diagnostics.NOERROR]
 
+        self._recent_errors = error_list
+
         return error_list
 
     def __gps_boot(self) -> int:
@@ -154,11 +159,14 @@ class ArgusV1(CubeSat):
         :return: Error code if the GPS failed to initialize
         """
         try:
-            gps = gps.GPS(ArgusV1Components.GPS_UART,
+            gps1 = gps.GPS(ArgusV1Components.GPS_UART,
                                   ArgusV1Components.GPS_ENABLE)
-            gps = GPSMiddleware(gps)
-            super()._gps = gps
-            super()._device_list.append(gps)
+            
+            if self.__middleware_enabled:
+                gps1 = Middleware(gps1, gps_fatal_exception)
+
+            self._gps = gps1
+            self._device_list.append(gps1)
         except Exception:
             return Diagnostics.GPS_NOT_INITIALIZED
         
@@ -172,9 +180,12 @@ class ArgusV1(CubeSat):
         try:
             battery_monitor = adm1176.ADM1176(ArgusV1Components.BATTERY_POWER_MONITOR_I2C,
                                               ArgusV1Components.BATTERY_POWER_MONITOR_I2C_ADDRESS)
-            battery_monitor = BatteryPowerMonitorMiddleware(battery_monitor)
-            super()._battery_monitor = battery_monitor
-            super()._device_list.append(battery_monitor)
+            
+            if self.__middleware_enabled:
+                battery_monitor = Middleware(battery_monitor, battery_power_monitor_fatal_exception)
+
+            self._battery_monitor = battery_monitor
+            self._device_list.append(battery_monitor)
         except Exception:
             return Diagnostics.ADM1176_NOT_INITIALIZED
         
@@ -188,9 +199,12 @@ class ArgusV1(CubeSat):
         try:
             jetson_monitor = adm1176.ADM1176(ArgusV1Components.JETSON_POWER_MONITOR_I2C,
                                              ArgusV1Components.JETSON_POWER_MONITOR_I2C_ADDRESS)
-            jetson_monitor = JetsonPowerMonitorMiddleware(jetson_monitor)
-            super()._jetson_monitor = jetson_monitor
-            super()._device_list.append(jetson_monitor)
+            
+            if self.__middleware_enabled:
+                jetson_monitor = Middleware(jetson_monitor, jetson_power_monitor_fatal_exception)
+            
+            self._jetson_monitor = jetson_monitor
+            self._device_list.append(jetson_monitor)
         except Exception:
             return Diagnostics.ADM1176_NOT_INITIALIZED
         
@@ -205,9 +219,12 @@ class ArgusV1(CubeSat):
             imu = bmx160.BMX160(ArgusV1Components.IMU_I2C,
                                 ArgusV1Components.IMU_I2C_ADDRESS,
                                 ArgusV1Components.IMU_ENABLE)
-            imu = IMUMiddleware(imu)
-            super()._imu = imu
-            super()._device_list.append(imu)
+            
+            if self.__middleware_enabled:
+                imu = Middleware(imu, imu_fatal_exception)
+            
+            self._imu = imu
+            self._device_list.append(imu)
         except Exception:
             return Diagnostics.BMX160_NOT_INITIALIZED
         
@@ -221,9 +238,12 @@ class ArgusV1(CubeSat):
         try:
             charger = bq25883.BQ25883(ArgusV1Components.CHARGER_I2C,
                                       ArgusV1Components.CHARGER_I2C_ADDRESS)
-            charger = ChargerMiddleware(charger)
-            super()._charger = charger
-            super()._device_list.append(charger)
+            
+            if self.__middleware_enabled:
+                charger = Middleware(charger, charger_fatal_exception)
+            
+            self._charger = charger
+            self._device_list.append(charger)
         except Exception:
             return Diagnostics.BQ25883_NOT_INITIALIZED
         
@@ -237,9 +257,12 @@ class ArgusV1(CubeSat):
         try:
             torque_xp = drv8830.DRV8830(ArgusV1Components.TORQUE_COILS_I2C,
                                         ArgusV1Components.TORQUE_XP_I2C_ADDRESS)
-            torque_xp = TorqueXPMiddleware(torque_xp)
-            super()._torque_xp = torque_xp
-            super()._device_list.append(torque_xp)
+            
+            if self.__middleware_enabled:
+                torque_xp = Middleware(torque_xp, torque_xp_fatal_exception)
+            
+            self._torque_xp = torque_xp
+            self._device_list.append(torque_xp)
         except Exception:
             return Diagnostics.DRV8830_NOT_INITIALIZED
         
@@ -253,9 +276,12 @@ class ArgusV1(CubeSat):
         try:
             torque_xm = drv8830.DRV8830(ArgusV1Components.TORQUE_COILS_I2C,
                                         ArgusV1Components.TORQUE_XM_I2C_ADDRESS)
-            torque_xm = TorqueXMMiddleware(torque_xm)
-            super()._torque_xm = torque_xm
-            super()._device_list.append(torque_xm)
+            
+            if self.__middleware_enabled:
+                torque_xm = Middleware(torque_xm, torque_xm_fatal_exception)
+            
+            self._torque_xm = torque_xm
+            self._device_list.append(torque_xm)
         except Exception:
             return Diagnostics.DRV8830_NOT_INITIALIZED
         
@@ -269,9 +295,12 @@ class ArgusV1(CubeSat):
         try:
             torque_yp = drv8830.DRV8830(ArgusV1Components.TORQUE_COILS_I2C,
                                         ArgusV1Components.TORQUE_YP_I2C_ADDRESS)
-            torque_yp = TorqueYPMiddleware(torque_yp)
-            super()._torque_yp = torque_yp
-            super()._device_list.append(torque_yp)
+            
+            if self.__middleware_enabled:
+                torque_yp = Middleware(torque_yp, torque_yp_fatal_exception)
+            
+            self._torque_yp = torque_yp
+            self._device_list.append(torque_yp)
         except Exception:
             return Diagnostics.DRV8830_NOT_INITIALIZED
         
@@ -285,9 +314,12 @@ class ArgusV1(CubeSat):
         try:
             torque_ym = drv8830.DRV8830(ArgusV1Components.TORQUE_COILS_I2C,
                                         ArgusV1Components.TORQUE_YM_I2C_ADDRESS)
-            torque_ym = TorqueYMMiddleware(torque_ym)
-            super()._torque_ym = torque_ym
-            super()._device_list.append(torque_ym)
+            
+            if self.__middleware_enabled:
+                torque_ym = Middleware(torque_ym, torque_ym_fatal_exception)
+            
+            self._torque_ym = torque_ym
+            self._device_list.append(torque_ym)
         except Exception:
             return Diagnostics.DRV8830_NOT_INITIALIZED
         
@@ -301,9 +333,12 @@ class ArgusV1(CubeSat):
         try:
             torque_z = drv8830.DRV8830(ArgusV1Components.TORQUE_COILS_I2C,
                                        ArgusV1Components.TORQUE_Z_I2C_ADDRESS)
-            torque_z = TorqueZMiddleware(torque_z)
-            super()._torque_z = torque_z
-            super()._device_list.append(torque_z)
+            
+            if self.__middleware_enabled:
+                torque_z = Middleware(torque_z, torque_z_fatal_exception)
+            
+            self._torque_z = torque_z
+            self._device_list.append(torque_z)
         except Exception:
             return Diagnostics.DRV8830_NOT_INITIALIZED
         
@@ -317,9 +352,12 @@ class ArgusV1(CubeSat):
         try:
             sun_sensor_xp = opt4001.OPT4001(ArgusV1Components.SUN_SENSORS_I2C,
                                             ArgusV1Components.SUN_SENSOR_XP_I2C_ADDRESS)
-            sun_sensor_xp = SunSensorXPMiddleware(sun_sensor_xp)
-            super()._sun_sensor_xp = sun_sensor_xp
-            super()._device_list.append(sun_sensor_xp)
+            
+            if self.__middleware_enabled:
+                sun_sensor_xp = Middleware(sun_sensor_xp, sun_sensor_xp_fatal_exception)
+            
+            self._sun_sensor_xp = sun_sensor_xp
+            self._device_list.append(sun_sensor_xp)
         except Exception:
             return Diagnostics.OPT4001_NOT_INITIALIZED
         
@@ -333,9 +371,12 @@ class ArgusV1(CubeSat):
         try:
             sun_sensor_xm = opt4001.OPT4001(ArgusV1Components.SUN_SENSORS_I2C,
                                             ArgusV1Components.SUN_SENSOR_XM_I2C_ADDRESS)
-            sun_sensor_xm = SunSensorXMMiddleware(sun_sensor_xm)
-            super()._sun_sensor_xm = sun_sensor_xm
-            super()._device_list.append(sun_sensor_xm)
+            
+            if self.__middleware_enabled:
+                sun_sensor_xm = Middleware(sun_sensor_xm, sun_sensor_xm_fatal_exception)
+            
+            self._sun_sensor_xm = sun_sensor_xm
+            self._device_list.append(sun_sensor_xm)
         except Exception:
             return Diagnostics.OPT4001_NOT_INITIALIZED
         
@@ -349,9 +390,12 @@ class ArgusV1(CubeSat):
         try:
             sun_sensor_yp = opt4001.OPT4001(ArgusV1Components.SUN_SENSORS_I2C, 
                                             ArgusV1Components.SUN_SENSOR_YP_I2C_ADDRESS)
-            sun_sensor_yp = SunSensorYPMiddleware(sun_sensor_yp)
-            super()._sun_sensor_yp = sun_sensor_yp
-            super()._device_list.append(sun_sensor_yp)
+            
+            if self.__middleware_enabled:
+                sun_sensor_yp = Middleware(sun_sensor_yp, sun_sensor_yp_fatal_exception)
+            
+            self._sun_sensor_yp = sun_sensor_yp
+            self._device_list.append(sun_sensor_yp)
         except Exception:
             return Diagnostics.OPT4001_NOT_INITIALIZED
         
@@ -365,9 +409,12 @@ class ArgusV1(CubeSat):
         try:
             sun_sensor_ym = opt4001.OPT4001(ArgusV1Components.SUN_SENSORS_I2C, 
                                             ArgusV1Components.SUN_SENSOR_YM_I2C_ADDRESS)
-            sun_sensor_ym = SunSensorYMMiddleware(sun_sensor_ym)
-            super()._sun_sensor_ym = sun_sensor_ym
-            super()._device_list.append(sun_sensor_ym)
+            
+            if self.__middleware_enabled:
+                sun_sensor_ym = Middleware(sun_sensor_ym, sun_sensor_ym_fatal_exception)
+            
+            self._sun_sensor_ym = sun_sensor_ym
+            self._device_list.append(sun_sensor_ym)
         except Exception:
             return Diagnostics.OPT4001_NOT_INITIALIZED
         
@@ -381,9 +428,12 @@ class ArgusV1(CubeSat):
         try:
             sun_sensor_zp = opt4001.OPT4001(ArgusV1Components.SUN_SENSORS_I2C, 
                                             ArgusV1Components.SUN_SENSOR_ZP_I2C_ADDRESS)
-            sun_sensor_zp = SunSensorZPMiddleware(sun_sensor_zp)
-            super()._sun_sensor_zp = sun_sensor_zp
-            super()._device_list.append(sun_sensor_zp)
+            
+            if self.__middleware_enabled:
+                sun_sensor_zp = Middleware(sun_sensor_zp, sun_sensor_zp_fatal_exception)
+            
+            self._sun_sensor_zp = sun_sensor_zp
+            self._device_list.append(sun_sensor_zp)
         except Exception:
             return Diagnostics.OPT4001_NOT_INITIALIZED
         
@@ -397,9 +447,12 @@ class ArgusV1(CubeSat):
         try:
             sun_sensor_zm = opt4001.OPT4001(ArgusV1Components.SUN_SENSORS_I2C, 
                                             ArgusV1Components.SUN_SENSOR_ZM_I2C_ADDRESS)
-            sun_sensor_zm = SunSensorZMMiddleware(sun_sensor_zm)
-            super()._sun_sensor_zm = sun_sensor_zm
-            super()._device_list.append(sun_sensor_zm)
+            
+            if self.__middleware_enabled:
+                sun_sensor_zm = Middleware(sun_sensor_zm, sun_sensor_zm_fatal_exception)
+            
+            self._sun_sensor_zm = sun_sensor_zm
+            self._device_list.append(sun_sensor_zm)
         except Exception:
             return Diagnostics.OPT4001_NOT_INITIALIZED
         
@@ -415,9 +468,12 @@ class ArgusV1(CubeSat):
                                 ArgusV1Components.RADIO_CS, 
                                 ArgusV1Components.RADIO_RESET, 
                                 ArgusV1Components.RADIO_FREQ)
-            radio = RadioMiddleware(radio)
-            super()._radio = radio
-            super()._device_list.append(radio)
+            
+            if self.__middleware_enabled:
+                radio = Middleware(radio, radio_fatal_exception)
+            
+            self._radio = radio
+            self._device_list.append(radio)
         except Exception:
             return Diagnostics.RFM9X_NOT_INITIALIZED
     
@@ -430,9 +486,12 @@ class ArgusV1(CubeSat):
         """
         try:
             rtc = pcf8523.PCF8523(ArgusV1Interfaces.I2C1)
-            rtc = RTC_Middleware(rtc)
-            super()._rtc = rtc
-            super()._device_list.append(rtc)
+            
+            if self.__middleware_enabled:
+                rtc = Middleware(rtc, rtc_fatal_exception)
+            
+            self._rtc = rtc
+            self._device_list.append(rtc)
         except Exception:
             return Diagnostics.PCF8523_NOT_INITIALIZED
         
@@ -445,8 +504,9 @@ class ArgusV1(CubeSat):
             neopixel = neopixel.NeoPixel(ArgusV1Components.NEOPIXEL_SDA,
                                          brightness=ArgusV1Components.NEOPIXEL_BRIGHTNESS,
                                          pixel_order=neopixel.GRB)
-            super()._neopixel = neopixel
-            super()._device_list.append(neopixel)
+            self._neopixel = neopixel
+            self._device_list.append(neopixel)
+            self.append_device(neopixel)
         except Exception:
             return Diagnostics.NEOPIXEL_NOT_INITIALIZED
         
@@ -459,8 +519,8 @@ class ArgusV1(CubeSat):
             sd_card = sdcardio.SDCard(ArgusV1Components.SD_CARD_SPI,
                                       ArgusV1Components.SD_CARD_CS,
                                       ArgusV1Components.SD_BAUD)
-            super()._sd_card = sd_card
-            super()._device_list.append(sd_card)
+            self._sd_card = sd_card
+            self.append_device(sd_card)
         except Exception:
             return Diagnostics.SDCARD_NOT_INITIALIZED
         
@@ -475,9 +535,12 @@ class ArgusV1(CubeSat):
                                             ArgusV1Components.BURN_WIRE_XM,
                                             ArgusV1Components.BURN_WIRE_YP,
                                             ArgusV1Components.BURN_WIRE_YM)
-            burn_wires = BurnWireMiddleware(burn_wires)
-            super()._burn_wires = burn_wires
-            super()._device_list.append(burn_wires)
+            
+            if self.__middleware_enabled:
+                burn_wires = Middleware(burn_wires, burn_wire_fatal_exception)
+            
+            self._burn_wires = burn_wires
+            self.append_device(burn_wires)
         except Exception:
             return Diagnostics.BURNWIRES_NOT_INITIALIZED
         
@@ -490,12 +553,22 @@ class ArgusV1(CubeSat):
         """
         error_list: list[int] = []
 
-        for device in super()._device_list:
-            error_list.append(device.run_diagnostics())
+        for device in self.device_list:
+            try:
+                if device.resetable:
+                    device.enable()
+                    
+                error_list += device.run_diagnostics()
 
+                if device.resetable:
+                    device.disable()
+            except Exception:
+                continue # TODO: Create a device failure error code for each device
+
+        error_list = [err for err in error_list if err != Diagnostics.NOERROR]
         error_list = list(set(error_list)) # Remove duplicate errors
 
-        super()._recent_errors = error_list
+        self._recent_errors = error_list
 
         return error_list
     

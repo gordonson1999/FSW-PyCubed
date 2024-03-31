@@ -15,7 +15,7 @@ class Diagnostics:
     """
 
     ############### ERROR CODES ###############
-    NOERROR = const(0)
+    NOERROR                                         = const(0)
 
     # ADM1176 errors
     ADM1176_NOT_INITIALIZED                         = const(1)
@@ -41,8 +41,8 @@ class Diagnostics:
     OPT4001_ID_CHECK_FAILED                         = const(17)
     
     # Adafruit GPS errors
-    GPS_NOT_INITIALIZED                    = const(18)
-    GPS_UPDATE_CHECK_FAILED                = const(19)
+    GPS_NOT_INITIALIZED                             = const(18)
+    GPS_UPDATE_CHECK_FAILED                         = const(19)
     
     # PCF8523 errors
     PCF8523_NOT_INITIALIZED                         = const(20)
@@ -84,10 +84,10 @@ class Diagnostics:
     def __init__(self, enable = None) -> None:
         self.__enable = enable
 
-        self.__errors_present = False
+        self.errors_present = False
 
     def error_present(self) -> bool:
-        return self.__errors_present
+        return self.errors_present
 
     def run_diagnostics(self) -> list[int] | None:
         """run_diagnostic_test: Run all tests for the component
@@ -106,6 +106,18 @@ class Diagnostics:
         if self.__enable is not None:
             self.__enable.value = False
             self.__enable.value = True
+
+    def enable(self):
+        """enable: Enable the component
+        """
+        if self.__enable is not None:
+            raise NotImplementedError("Subclasses must implement enable method")
+    
+    def disable(self):
+        """disable: Disable the component
+        """
+        if self.__enable is not None:
+            raise NotImplementedError("Subclasses must implement disable method")
 
     @staticmethod
     def convert_errors_to_byte_array(errors: list[int]) -> bytes:

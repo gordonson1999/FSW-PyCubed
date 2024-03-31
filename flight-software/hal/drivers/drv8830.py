@@ -50,7 +50,7 @@ from adafruit_register.i2c_bits import RWBits
 from adafruit_register.i2c_bit import RWBit
 from adafruit_register.i2c_bit import ROBit
 
-from diagnostics.diagnostics import Diagnostics
+from .diagnostics.diagnostics import Diagnostics
 
 # DEVICE REGISTER MAP
 _CONTROL = 0x00  # Control Register      -W
@@ -329,6 +329,6 @@ class DRV8830(Diagnostics):
         error_list = list(set(error_list))
 
         if not Diagnostics.NOERROR in error_list:
-            super().__errors_present = True
+            self.errors_present = True
 
         return error_list

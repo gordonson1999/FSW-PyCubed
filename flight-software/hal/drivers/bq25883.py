@@ -18,7 +18,7 @@ from adafruit_register.i2c_struct import ROUnaryStruct, UnaryStruct
 from adafruit_register.i2c_bits import ROBits, RWBits
 from adafruit_register.i2c_bit import ROBit, RWBit
 
-from diagnostics.diagnostics import Diagnostics
+from .diagnostics.diagnostics import Diagnostics
 
 # Registers
 _BATV_LIM       = const(0x00)
@@ -177,6 +177,6 @@ class BQ25883(Diagnostics):
         error_list = list(set(error_list))
 
         if not Diagnostics.NOERROR in error_list:
-            super().__errors_present = True
+            self.errors_present = True
 
         return error_list

@@ -44,7 +44,7 @@ Implementation Notes
 """
 import time
 from micropython import const
-from diagnostics.diagnostics import Diagnostics
+from .diagnostics.diagnostics import Diagnostics
 import digitalio
 import time
 
@@ -494,6 +494,6 @@ class GPS(Diagnostics):
         error_list = list(set(error_list))
 
         if not Diagnostics.NOERROR in error_list:
-            super().__errors_present = True
+            self.errors_present = True
 
         return error_list

@@ -2,9 +2,9 @@ import board
 import time
 import digitalio
 
-from bitflags import bitFlag, multiBitFlag 
+from hal.bitflags import bitFlag, multiBitFlag 
 from micropython import const
-from drivers.diagnostics import Diagnostics
+from hal.drivers.diagnostics.diagnostics import Diagnostics
 
 # NVM register numbers
 _BOOTCNT  = const(0)
@@ -82,7 +82,7 @@ class CubeSat:
         self._neopixel = None
     
     ## ABSTRACT METHOD ##
-    def boot_sequence(self) -> None:
+    def boot_sequence(self) -> list[int]:
         """boot_sequence: Boot sequence for the CubeSat.
         """
         raise NotImplementedError("CubeSats must implement boot method")
@@ -97,6 +97,17 @@ class CubeSat:
         """get_recent_errors: Get the most recent errors from the system
         """
         return self._recent_errors
+    
+    @property
+    def device_list(self):
+        """device_list: Get the list of successfully initialized devices
+        """
+        return self._device_list
+    
+    def append_device(self, device):
+        """append_device: Append a device to the device list
+        """
+        self._device_list.append(device)
     
     ######################### INTERFACES #########################
     

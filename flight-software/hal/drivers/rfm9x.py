@@ -15,7 +15,7 @@ from random import random
 import digitalio
 from micropython import const
 import adafruit_bus_device.spi_device as spidev
-from diagnostics.diagnostics import Diagnostics
+from .diagnostics.diagnostics import Diagnostics
 
 # pylint: disable=bad-whitespace
 # Internal constants:

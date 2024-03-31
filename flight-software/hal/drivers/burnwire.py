@@ -7,7 +7,7 @@ Author: Harry Rosmann
 Date: March 28, 2024
 """
 
-from diagnostics.diagnostics import Diagnostics
+from .diagnostics.diagnostics import Diagnostics
 import digitalio, pwmio
 from micropython import const
 import time
