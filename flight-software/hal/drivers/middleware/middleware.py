@@ -48,6 +48,11 @@ class Middleware:
         self._wrapped_attributes = {}
         self.wrap_attributes()
 
+    def get_instance(self):
+        """get_instance: Get the wrapped instance of the driver.
+        """
+        return self._wrapped_instance
+
     def wrap_attributes(self):
         """wrap_attributes: Wrap the attributes of the driver instance.
         """
@@ -90,6 +95,7 @@ class Middleware:
             try:
                 return method(*args, **kwargs)
             except Exception as e:
+                ## Try to handle fault
                 if not self.handle_fault(method, *args, **kwargs):
                     raise self.exception(e)
                 

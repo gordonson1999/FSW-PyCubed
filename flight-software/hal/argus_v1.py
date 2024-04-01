@@ -547,6 +547,54 @@ class ArgusV1(CubeSat):
         return Diagnostics.NOERROR
 
     ######################## DIAGNOSTICS ########################
+    def __get_device_diagnostic_error(self, device) -> int:
+        """__get_device_diagnostic_error: Get the error code for a device that failed to initialize
+        """
+        if isinstance(device, Middleware): # Convert device to the wrapped instance
+            device = device.get_instance()
+
+        if device is self.RTC:
+            return Diagnostics.DIAGNOSTICS_ERROR_RTC
+        elif device is self.GPS:
+            return Diagnostics.DIAGNOSTICS_ERROR_GPS
+        elif device is self.BATTERY_POWER_MONITOR:
+            return Diagnostics.DIAGNOSTICS_ERROR_BATTERY_POWER_MONITOR
+        elif device is self.JETSON_POWER_MONITOR:
+            return Diagnostics.DIAGNOSTICS_ERROR_JETSON_POWER_MONITOR
+        elif device is self.IMU:
+            return Diagnostics.DIAGNOSTICS_ERROR_IMU
+        elif device is self.CHARGER:
+            return Diagnostics.DIAGNOSTICS_ERROR_CHARGER
+        elif device is self.TORQUE_XP:
+            return Diagnostics.DIAGNOSTICS_ERROR_TORQUE_XP
+        elif device is self.TORQUE_XM:
+            return Diagnostics.DIAGNOSTICS_ERROR_TORQUE_XM
+        elif device is self.TORQUE_YP:
+            return Diagnostics.DIAGNOSTICS_ERROR_TORQUE_YP
+        elif device is self.TORQUE_YM:
+            return Diagnostics.DIAGNOSTICS_ERROR_TORQUE_YM
+        elif device is self.TORQUE_Z:
+            return Diagnostics.DIAGNOSTICS_ERROR_TORQUE_Z
+        elif device is self.SUN_SENSOR_XP:
+            return Diagnostics.DIAGNOSTICS_ERROR_SUN_SENSOR_XP
+        elif device is self.SUN_SENSOR_XM:
+            return Diagnostics.DIAGNOSTICS_ERROR_SUN_SENSOR_XM
+        elif device is self.SUN_SENSOR_YP:
+            return Diagnostics.DIAGNOSTICS_ERROR_SUN_SENSOR_YP
+        elif device is self.SUN_SENSOR_YM:
+            return Diagnostics.DIAGNOSTICS_ERROR_SUN_SENSOR_YM
+        elif device is self.SUN_SENSOR_ZP:
+            return Diagnostics.DIAGNOSTICS_ERROR_SUN_SENSOR_ZP
+        elif device is self.SUN_SENSOR_ZM:
+            return Diagnostics.DIAGNOSTICS_ERROR_SUN_SENSOR_ZM
+        elif device is self.RADIO:
+            return Diagnostics.DIAGNOSTICS_ERROR_RADIO
+        elif device is self.NEOPIXEL:
+            return Diagnostics.DIAGNOSTICS_ERROR_NEOPIXEL
+        elif device is self.BURN_WIRES:
+            return Diagnostics.DIAGNOSTICS_ERROR_BURN_WIRES
+        else:
+            return Diagnostics.DIAGNOSTICS_ERROR_UNKNOWN
 
     def run_system_diagnostics(self) -> list[int] | None:
         """run_diagnostic_test: Run all diagnostics across all components
@@ -568,7 +616,8 @@ class ArgusV1(CubeSat):
                 if device.resetable:
                     device.disable()
             except Exception:
-                continue # TODO: Create a device failure error code for each device
+                error_list.append(self.__get_device_diagnostic_error(device))
+                continue 
 
         error_list = [err for err in error_list if err != Diagnostics.NOERROR]
         error_list = list(set(error_list)) # Remove duplicate errors

@@ -103,7 +103,7 @@ class PCF8523(Diagnostics):
     """
 
     ## TODO: Convert all of these i2c bits to properties so that Middlware can catch them
-
+    
     lost_power = i2c_bit.RWBit(0x03, 7)
     """True if the device has lost power since the time was set."""
 

@@ -78,8 +78,31 @@ class Diagnostics:
     # Burn Wire errors
     BURNWIRES_NOT_INITIALIZED                       = const(39)
 
+    # Diagnostics errors - occur when running diagnostics on the system fails
+    DIAGNOSTICS_ERROR_GPS                           = const(40)
+    DIAGNOSTICS_ERROR_BATTERY_POWER_MONITOR         = const(41)
+    DIAGNOSTICS_ERROR_JETSON_POWER_MONITOR          = const(42)
+    DIAGNOSTICS_ERROR_IMU                           = const(43)
+    DIAGNOSTICS_ERROR_CHARGER                       = const(44)
+    DIAGNOSTICS_ERROR_TORQUE_XP                     = const(45)
+    DIAGNOSTICS_ERROR_TORQUE_XM                     = const(46)
+    DIAGNOSTICS_ERROR_TORQUE_YP                     = const(47)
+    DIAGNOSTICS_ERROR_TORQUE_YM                     = const(48)
+    DIAGNOSTICS_ERROR_TORQUE_Z                      = const(49)
+    DIAGNOSTICS_ERROR_SUN_SENSOR_XP                 = const(50)
+    DIAGNOSTICS_ERROR_SUN_SENSOR_XM                 = const(51)
+    DIAGNOSTICS_ERROR_SUN_SENSOR_YP                 = const(52)
+    DIAGNOSTICS_ERROR_SUN_SENSOR_YM                 = const(53)
+    DIAGNOSTICS_ERROR_SUN_SENSOR_ZP                 = const(54)
+    DIAGNOSTICS_ERROR_SUN_SENSOR_ZM                 = const(55)
+    DIAGNOSTICS_ERROR_RTC                           = const(56)
+    DIAGNOSTICS_ERROR_RADIO                         = const(57)
+    DIAGNOSTICS_ERROR_NEOPIXEL                      = const(58)
+    DIAGNOSTICS_ERROR_BURN_WIRES                    = const(59)
+    DIAGNOSTICS_ERROR_UNKNOWN                       = const(60)
+
     __ERROR_MIN                                     = const(0)
-    __ERROR_MAX                                     = const(39)
+    __ERROR_MAX                                     = const(60)
 
     def __init__(self, enable) -> None:
         self._enable = enable
