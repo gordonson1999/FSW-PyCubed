@@ -43,6 +43,7 @@ QUEUE_2 = 0x02
 
 # Heartbeat sequence
 HEARTBEAT_SEQ = [SAT_HEARTBEAT_BATT, SAT_HEARTBEAT_SUN, SAT_HEARTBEAT_IMU, SAT_HEARTBEAT_BATT, SAT_HEARTBEAT_SUN, SAT_HEARTBEAT_GPS]
+HEARTBEAT_SEQ = [SAT_HEARTBEAT_BATT, SAT_HEARTBEAT_SUN, SAT_HEARTBEAT_IMU, SAT_HEARTBEAT_BATT, SAT_HEARTBEAT_SUN, SAT_HEARTBEAT_GPS]
 
 # Other constants
 REQ_ACK_NUM = 0x80
@@ -94,11 +95,14 @@ def construct_message(lora_tx_message_ID):
 
         # Add x-axis sun vector 
         lora_tx_message += convert_fixed_point_hp(0.1234567)
+        lora_tx_message += convert_fixed_point_hp(0.1234567)
 
         # Add y-axis sun vector 
         lora_tx_message += convert_fixed_point_hp(0.1357924)
+        lora_tx_message += convert_fixed_point_hp(0.1357924)
 
         # Add z-axis sun vector 
+        lora_tx_message += convert_fixed_point_hp(-0.1234567)
         lora_tx_message += convert_fixed_point_hp(-0.1234567)
 
         # Add time reference as uint32_t 
@@ -193,6 +197,11 @@ def construct_message(lora_tx_message_ID):
         # Construct SAT ACK 
         lora_tx_message = [REQ_ACK_NUM | SAT_ACK, 0x00, 0x00, 0x36]
         lora_tx_message += [GS_ACK, GS_ACK, 0x00, 0x00]
+    
+    else:
+        # Construct SAT ACK 
+        lora_tx_message = [REQ_ACK_NUM | SAT_ACK, 0x00, 0x00, 0x36]
+        lora_tx_message += [GS_ACK, GS_ACK, 0x00, 0x00]
 
     return bytes(lora_tx_message)
 
@@ -225,6 +234,13 @@ def convert_fixed_point(val):
     Convert value to FP with 2 int bytes, 2 dec bytes
     Range: [-32767.9999], 32767.9999]
     """
+    """
+    :param val: Value to convert to fixed point 
+    :return: value in FP as byte list 
+
+    Convert value to FP with 2 int bytes, 2 dec bytes
+    Range: [-32767.9999], 32767.9999]
+    """
     message_list = []
     neg_bit_flag = 0
 
@@ -233,6 +249,7 @@ def convert_fixed_point(val):
         val = -1 * val
         neg_bit_flag = 1
 
+    # Isolate int and write to 2 bytes 
     # Isolate int and write to 2 bytes 
     val_int = int(val)
     val_int_LSB = val_int & 0xFF
@@ -245,6 +262,7 @@ def convert_fixed_point(val):
     message_list.append(val_int_MSB)
     message_list.append(val_int_LSB)
 
+    # Isolate decimal and write to 2 bytes
     # Isolate decimal and write to 2 bytes
     val_dec = val - val_int
     val_dec = int(val_dec * 65536)
@@ -265,10 +283,18 @@ def convert_floating_point(message_list):
     Convert FP value back to floating point 
     Range: [-32767.9999], 32767.9999]
     """
+    """
+    :param message_list: Byte list to convert to floating 
+    :return: value as floating point  
+
+    Convert FP value back to floating point 
+    Range: [-32767.9999], 32767.9999]
+    """
     val = 0
     neg_bit_flag = 0
 
     # Check -ve, extract LSB bytes for val, combine 
+    if((message_list[0] >> 7) == 1): 
     if((message_list[0] >> 7) == 1): 
         message_list[0] &= 0x7F
         neg_bit_flag = 1
@@ -279,6 +305,70 @@ def convert_floating_point(message_list):
     if(neg_bit_flag == 1): val = -1 * val
 
     return val
+
+def convert_fixed_point_hp(val):
+    """
+    :param val: Value to convert to fixed point 
+    :return: value in FP as byte list 
+
+    Convert value to HP FP with 1 int byte, 3 dec bytes
+    Range: [-128.9999999, 128.9999999]
+    """
+    message_list = []
+    neg_bit_flag = 0
+
+    # If val -ve, convert to natural, set first bit of MSB 
+    if(val < 0):
+        val = -1 * val
+        neg_bit_flag = 1
+
+    # Isolate int and write to 1 byte 
+    val_int = int(val)
+    val_int_LSB = val_int & 0xFF
+
+    # Set LSB first bit as neg_bit_flag
+    val_int_LSB |= (neg_bit_flag << 7)
+
+    # Add the values to the test list 
+    message_list.append(val_int_LSB)
+
+    # Isolate decimal and write to 3 bytes
+    val_dec = val - val_int
+    val_dec = int(val_dec * 16777216)
+    val_dec_LSB  = val_dec & 0xFF
+    val_dec_MiSB = (val_dec >> 8) & 0xFF
+    val_dec_MSB  = (val_dec >> 16) & 0xFF
+
+    # Add the values to the test list 
+    message_list.append(val_dec_MSB)
+    message_list.append(val_dec_MiSB)
+    message_list.append(val_dec_LSB)
+
+    return message_list
+
+def convert_floating_point_hp(message_list):
+    """
+    :param message_list: Byte list to convert to floating 
+    :return: value as floating point  
+
+    Convert HP FP value back to floating point 
+    Range: [-128.9999999, 128.9999999]
+    """
+    val = 0
+    neg_bit_flag = 0
+
+    # Check -ve, extract LSB bytes for val, combine 
+    if((message_list[0] >> 7) == 1): 
+        message_list[0] &= 0x7F
+        neg_bit_flag = 1
+
+    # Extract bytes for val, combine 
+    val += message_list[0]
+    val += ((message_list[1] << 16) + (message_list[2] << 8) + message_list[3]) / 16777216
+    if(neg_bit_flag == 1): val = -1 * val
+
+    return val
+
 
 def convert_fixed_point_hp(val):
     """

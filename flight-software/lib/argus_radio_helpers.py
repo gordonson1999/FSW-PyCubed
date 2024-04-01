@@ -45,6 +45,7 @@ class SATELLITE_RADIO:
 
         self.ota_array = []
         self.ota_sequence_count = 0
+        self.crc_count = 0
     
     '''
         Name: image_get_info
@@ -60,9 +61,9 @@ class SATELLITE_RADIO:
         # Get image #1 size and message count
         image_stat = os.stat(self.image_strs[self.image_num])
         self.sat_images.image_size = int(image_stat[6])
-        self.sat_images.image_message_count = int(self.sat_images.image_size / 128)
+        self.sat_images.image_message_count = int(self.sat_images.image_size / 196)
 
-        if ((self.sat_images.image_size % 128) > 0):
+        if ((self.sat_images.image_size % 196) > 0):
             self.sat_images.image_message_count += 1    
 
         print("Image size is", self.sat_images.image_size,"bytes")
@@ -92,12 +93,12 @@ class SATELLITE_RADIO:
         send_bytes = open(self.image_strs[self.image_num],'rb')
         # Loop through image and store contents in an array
         while (bytes_remaining > 0):
-            if (bytes_remaining >= 128):
-                self.image_array.append(send_bytes.read(128))
+            if (bytes_remaining >= 196):
+                self.image_array.append(send_bytes.read(196))
             else:
                 self.image_array.append(send_bytes.read(bytes_remaining))
                 
-            bytes_remaining -= 128
+            bytes_remaining -= 196
         # Close file when complete
         send_bytes.close()
 
@@ -179,6 +180,12 @@ class SATELLITE_RADIO:
                 self.gs_req_ack = 1
             else:
                 print(f'Received (raw bytes): {my_packet}')
+                crc_check = cubesat.radio1.crc_error()
+                print(f'CRC Status: {crc_check}')
+
+                if (crc_check > 0):
+                    self.crc_count += 1
+
                 rssi = cubesat.radio1.rssi(raw=True)
                 print(f'Received signal strength: {rssi} dBm')
                 self.unpack_message(my_packet)
@@ -196,7 +203,7 @@ class SATELLITE_RADIO:
         while send_multiple:
             time.sleep(0.15)
             # This code is practically the same as Ground Station function hold_receive_mode
-            if (self.gs_req_message_ID == SAT_IMG1_CMD):
+            if ((self.gs_req_message_ID == SAT_IMG1_CMD) and (self.crc_count == 0)):
                 target_sequence_count = self.sat_images.image_message_count
 
                 multiple_packet_count += 1
@@ -212,10 +219,11 @@ class SATELLITE_RADIO:
                 send_multiple = False
                 self.sat_req_ack = REQ_ACK_NUM
 
-            if not self.heartbeat_sent:
+            if ((not self.heartbeat_sent) or (self.crc_count > 0)):
                 # Transmit SAT heartbeat
                 tx_message = construct_message(HEARTBEAT_SEQ[self.heartbeat_curr])
 
+                if(self.heartbeat_curr == (self.heartbeat_max - 1)):
                 if(self.heartbeat_curr == (self.heartbeat_max - 1)):
                     self.heartbeat_curr = 0
                 else:
@@ -223,17 +231,20 @@ class SATELLITE_RADIO:
 
                 self.heartbeat_sent = True
 
+
             elif self.gs_req_message_ID == SAT_IMAGES:
                 # Transmit stored image info
                 tx_header = bytes([(self.sat_req_ack | SAT_IMAGES),0x0,0x0,0x18])
                 tx_payload = self.image_pack_info()
                 tx_message = tx_header + tx_payload
 
+
             elif self.gs_req_message_ID == SAT_DEL_IMG1:
                 # Transmit successful deletion of stored image 1
                 tx_header = bytes([(self.sat_req_ack | SAT_DEL_IMG1),0x0,0x0,0x1])
                 tx_payload = bytes([0x1])
                 tx_message = tx_header + tx_payload
+
 
             elif (self.gs_req_message_ID == SAT_IMG1_CMD):
                 # Transmit image in multiple packets
@@ -245,18 +256,22 @@ class SATELLITE_RADIO:
                 # Pack entire message
                 tx_message = tx_header + tx_payload
 
+
             elif (self.gs_req_message_ID == SAT_OTA_RES):
                 # Transmit response to OTA update
                 tx_header = bytes([(self.sat_req_ack | SAT_OTA_RES),0x0,0x0,0x3])
                 tx_payload = (self.ota_rec_success.to_bytes(1,'big') + self.ota_sequence_count.to_bytes(2,'big'))
                 tx_message = tx_header + tx_payload
 
+
             else:
+                # Transmit SAT heartbeat or ACK
                 # Transmit SAT heartbeat or ACK
                 tx_message = construct_message(self.gs_req_message_ID)
 
             # Send a message to GS
             cubesat.radio1.send(tx_message)
+            self.crc_count = 0
 
             # Debug output of message in bytes
             print("Satellite sent message with ID:", int.from_bytes(tx_message[0:1],'big') & 0b01111111)
