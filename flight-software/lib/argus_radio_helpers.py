@@ -224,11 +224,13 @@ class SATELLITE_RADIO:
                 tx_message = construct_message(HEARTBEAT_SEQ[self.heartbeat_curr])
 
                 if(self.heartbeat_curr == (self.heartbeat_max - 1)):
+                if(self.heartbeat_curr == (self.heartbeat_max - 1)):
                     self.heartbeat_curr = 0
                 else:
                     self.heartbeat_curr += 1
 
                 self.heartbeat_sent = True
+
 
             elif self.gs_req_message_ID == SAT_IMAGES:
                 # Transmit stored image info
@@ -236,11 +238,13 @@ class SATELLITE_RADIO:
                 tx_payload = self.image_pack_info()
                 tx_message = tx_header + tx_payload
 
+
             elif self.gs_req_message_ID == SAT_DEL_IMG1:
                 # Transmit successful deletion of stored image 1
                 tx_header = bytes([(self.sat_req_ack | SAT_DEL_IMG1),0x0,0x0,0x1])
                 tx_payload = bytes([0x1])
                 tx_message = tx_header + tx_payload
+
 
             elif (self.gs_req_message_ID == SAT_IMG1_CMD):
                 # Transmit image in multiple packets
@@ -252,13 +256,16 @@ class SATELLITE_RADIO:
                 # Pack entire message
                 tx_message = tx_header + tx_payload
 
+
             elif (self.gs_req_message_ID == SAT_OTA_RES):
                 # Transmit response to OTA update
                 tx_header = bytes([(self.sat_req_ack | SAT_OTA_RES),0x0,0x0,0x3])
                 tx_payload = (self.ota_rec_success.to_bytes(1,'big') + self.ota_sequence_count.to_bytes(2,'big'))
                 tx_message = tx_header + tx_payload
 
+
             else:
+                # Transmit SAT heartbeat or ACK
                 # Transmit SAT heartbeat or ACK
                 tx_message = construct_message(self.gs_req_message_ID)
 
