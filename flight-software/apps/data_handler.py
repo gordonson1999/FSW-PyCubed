@@ -23,6 +23,7 @@ from micropython import const
 
 _CLOSED = const(20)
 _OPEN = const(21)
+_IMG_SIZE_LIMIT = const(10000000)  # 10MB
 
 
 _FORMAT = {
@@ -66,6 +67,8 @@ class DataHandler:
         If a configuration file is found, it reads the data format and line limit from the file and registers
         a data process with the specified parameters.
 
+        If an 'img' configuration is found, it registers an image process with the specified data format.
+
         Returns:
             None
 
@@ -78,6 +81,12 @@ class DataHandler:
             if path_exist(config_file):
                 with open(config_file, "r") as f:
                     config_data = json.load(f)
+
+                    if "img" in config_data:
+                        data_format: str = config_data.get("img")
+                        cls.register_image_process(data_format)
+                        continue
+
                     data_format: str = config_data.get("data_format")
                     line_limit: int = config_data.get("line_limit")
                     if data_format and line_limit:
@@ -126,6 +135,18 @@ class DataHandler:
         else:
             raise ValueError("Line limit must be a positive integer.")
 
+    def register_image_process(cls, data_format: str) -> None:
+        """
+        Register an image process with the given data format.
+
+        Parameters:
+        - data_format (str): The format of the image data.
+
+        Returns:
+        - None
+        """
+        cls.data_process_registry["img"] = ImageProcess("img", data_format=data_format)
+
     @classmethod
     def log_data(cls, tag_name: str, data: dict) -> None:
         """
@@ -144,6 +165,25 @@ class DataHandler:
         try:
             if tag_name in cls.data_process_registry:
                 cls.data_process_registry[tag_name].log(data)
+            else:
+                raise KeyError("Data process not registered!")
+        except KeyError as e:
+            print(f"Error: {e}")
+
+    @classmethod
+    def log_image(cls, data: List[bytes]) -> None:
+        """
+        Logs the provided image data.
+
+        Parameters:
+        - data (List[bytes]): The image data to be logged.
+
+        Returns:
+        - None
+        """
+        try:
+            if "img" in cls.data_process_registry:
+                cls.data_process_registry["img"].log(data)
             else:
                 raise KeyError("Data process not registered!")
         except KeyError as e:
@@ -458,7 +498,6 @@ class DataProcess:
             )  # Default size limit is 1000 data lines
 
             self.current_path = self.create_new_path()
-
             self.delete_paths = []  # Paths that are flagged for deletion
             self.excluded_paths = []  # Paths that are currently being transmitted
 
@@ -704,8 +743,54 @@ class DataProcess:
             print("File is not closed!")
 
 
-class ImageProcess:
-    pass
+class ImageProcess(DataProcess):
+
+    def __init__(self, tag_name: str, data_format: str, home_path: str = "/sd"):
+
+        self.file = None
+        self.persistent = True
+
+        # TODO Check formating e.g. 'iff', 'iif', 'fff', 'iii', etc. ~ done within compute_bytesize()
+        self.data_format = "<" + data_format
+
+        self.status = _CLOSED
+
+        self.dir_path = home_path + "/" + tag_name + "/"
+        self.create_folder()
+
+        self.size_limit = _IMG_SIZE_LIMIT
+
+        self.current_path = self.create_new_path()
+        self.delete_paths = []  # Paths that are flagged for deletion
+        self.excluded_paths = []  # Paths that are currently being transmitted
+
+        config_file_path = self.dir_path + _PROCESS_CONFIG_FILENAME
+        if not path_exist(config_file_path):
+            config_data = {"img": True}
+            with open(config_file_path, "w") as config_file:
+                json.dump(config_data, config_file)
+
+    def log(self, data: List[bytes]) -> None:
+        """
+        Logs the given image data.
+
+        Args:
+            data (List[bytes]): The image data to be logged.
+
+        Returns:
+            None
+        """
+        self.resolve_current_file()
+        self.last_data = data
+
+        if self.persistent:
+            bin_data = struct.pack(self.data_format, *data)
+            self.file.write(bin_data)
+            self.file.flush()
+
+    def image_completed(self):
+        self.close()
+        self.resolve_current_file()
 
 
 def path_exist(path: str) -> bool:
