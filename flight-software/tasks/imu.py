@@ -10,10 +10,14 @@ from apps.data_handler import DataHandler as DH
 import time
 
 
+
+
 class Task(DebugTask):
 
     name = 'IMU'
     ID = 0x05
+
+    data_keys = ['time', 'accel_x', 'accel_y', 'accel_z', 'mag_x', 'mag_y', 'mag_z', 'gyro_x', 'gyro_y', 'gyro_z']
 
     # Temporary fake time
     curr_time = time.monotonic_ns()
@@ -24,8 +28,7 @@ class Task(DebugTask):
         if SM.current_state == 'NOMINAL':
 
             if DH.data_process_exists("imu") == False:
-                DH.register_data_process("imu", "ffffffffff", True, line_limit=20)
-                #time.sleep(50000)
+                DH.register_data_process("imu", self.data_keys, "ffffffffff", True, line_limit=20)
 
             print(f'[{self.ID}][{self.name}] Reading BMX160.')
 
@@ -55,7 +58,8 @@ class Task(DebugTask):
             }
 
 
-            DH.log_data("imu", *log_data.values())
+            # DH.log_data("imu", *log_data.values())
+            DH.log_data("imu", log_data)
 
             # Temp
             print(f'[{self.ID}][{self.name}] Frequency check: {self.curr_time - prev_time}')
