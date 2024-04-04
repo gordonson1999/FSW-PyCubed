@@ -1,6 +1,4 @@
-
-
-HARDWARE_VERSION = "v05" # TODO - date
+HARDWARE_VERSION = "v05"  # TODO - date
 
 
 if HARDWARE_VERSION == "v05":

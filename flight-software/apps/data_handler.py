@@ -26,23 +26,22 @@ _OPEN = const(21)
 
 
 _FORMAT = {
-            'b': 1,   # byte
-            'B': 1,   # unsigned byte
-            'h': 2,   # short
-            'H': 2,   # unsigned short
-            'i': 4,   # int
-            'I': 4,   # unsigned int
-            'l': 4,   # long
-            'L': 4,   # unsigned long
-            'q': 8,   # long long
-            'Q': 8,   # unsigned long long
-            'f': 4,   # float
-            'd': 8    # double
-        }
+    "b": 1,  # byte
+    "B": 1,  # unsigned byte
+    "h": 2,  # short
+    "H": 2,  # unsigned short
+    "i": 4,  # int
+    "I": 4,  # unsigned int
+    "l": 4,  # long
+    "L": 4,  # unsigned long
+    "q": 8,  # long long
+    "Q": 8,  # unsigned long long
+    "f": 4,  # float
+    "d": 8,  # double
+}
 
 
 _PROCESS_CONFIG_FILENAME = ".process_configuration.json"
-
 
 
 class DataHandler:
@@ -50,8 +49,8 @@ class DataHandler:
     Managing class for all data processes and the SD card.
 
 
-    Note: If the same SPI bus is shared with other peripherals, the SD card must be initialized before accessing any other peripheral on the bus. 
-    Failure to do so can prevent the SD card from being recognized until it is powered off or re-inserted.       
+    Note: If the same SPI bus is shared with other peripherals, the SD card must be initialized before accessing any other peripheral on the bus.
+    Failure to do so can prevent the SD card from being recognized until it is powered off or re-inserted.
     """
 
     sd_path = "/sd"
@@ -77,17 +76,29 @@ class DataHandler:
         for dir_name in directories:
             config_file = join_path(cls.sd_path, dir_name, _PROCESS_CONFIG_FILENAME)
             if path_exist(config_file):
-                with open(config_file, 'r') as f:
+                with open(config_file, "r") as f:
                     config_data = json.load(f)
-                    data_format: str = config_data.get('data_format')
-                    line_limit: int = config_data.get('line_limit')
+                    data_format: str = config_data.get("data_format")
+                    line_limit: int = config_data.get("line_limit")
                     if data_format and line_limit:
-                        cls.register_data_process(dir_name, data_format, persistent=True, line_limit=line_limit)
+                        cls.register_data_process(
+                            dir_name,
+                            data_format,
+                            persistent=True,
+                            line_limit=line_limit,
+                        )
 
         # print("SD Card Scanning complete - found ", cls.data_process_registry.keys())
 
     @classmethod
-    def register_data_process(cls, tag_name: str, data_keys: List[str], data_format: str, persistent: bool, line_limit: int = 1000) -> None:
+    def register_data_process(
+        cls,
+        tag_name: str,
+        data_keys: List[str],
+        data_format: str,
+        persistent: bool,
+        line_limit: int = 1000,
+    ) -> None:
         """
         Register a data process with the given parameters.
 
@@ -105,10 +116,15 @@ class DataHandler:
         - None
         """
         if isinstance(line_limit, int) and line_limit > 0:
-            cls.data_process_registry[tag_name] = DataProcess(tag_name, data_keys, data_format, persistent=persistent, line_limit=line_limit)
+            cls.data_process_registry[tag_name] = DataProcess(
+                tag_name,
+                data_keys,
+                data_format,
+                persistent=persistent,
+                line_limit=line_limit,
+            )
         else:
             raise ValueError("Line limit must be a positive integer.")
-
 
     @classmethod
     def log_data(cls, tag_name: str, data: dict) -> None:
@@ -155,7 +171,6 @@ class DataHandler:
         except KeyError as e:
             print(f"Error: {e}")
 
-
     @classmethod
     def list_directories(cls) -> List[str]:
         """
@@ -168,7 +183,6 @@ class DataHandler:
             directories = DataHandler.list_directories()
         """
         return os.listdir(cls.sd_path)
-
 
     # DEBUG ONLY
     @classmethod
@@ -189,7 +203,7 @@ class DataHandler:
             process = DataHandler.get_data_process('tag_name')
         """
         return cls.data_process_registry[tag_name]
-    
+
     @classmethod
     def get_all_data_processes_name(cls) -> List[str]:
         """
@@ -202,7 +216,7 @@ class DataHandler:
             names = DataHandler.get_all_data_processes_name()
         """
         return list(cls.data_process_registry.keys())
-    
+
     # DEBUG ONLY
     @classmethod
     def get_all_data_processes(cls) -> List[DataProcess]:
@@ -216,7 +230,7 @@ class DataHandler:
             processes = DataHandler.get_all_data_processes()
         """
         return list(cls.data_process_registry.values())
-    
+
     @classmethod
     def get_storage_info(cls, tag_name: str) -> None:
         """
@@ -242,7 +256,6 @@ class DataHandler:
         except KeyError as e:
             print(f"Error: {e}")
 
-
     @classmethod
     def data_process_exists(cls, tag_name: str) -> bool:
         """
@@ -256,28 +269,29 @@ class DataHandler:
         """
         return tag_name in cls.data_process_registry
 
-
     @classmethod
     def request_TM_path(cls, tag_name, latest=False):
         """
-        Returns the path of a designated file available for transmission. 
+        Returns the path of a designated file available for transmission.
         If no file is available, the function returns None.
 
-        The function store the file path to be excluded in clean-up policies. 
+        The function store the file path to be excluded in clean-up policies.
         Once fully transmitted, notify_TM_path() must be called to remove the file from the exclusion list.
         """
         try:
             if tag_name in cls.data_process_registry:
-                return cls.data_process_registry[tag_name].request_TM_path(latest=latest)
+                return cls.data_process_registry[tag_name].request_TM_path(
+                    latest=latest
+                )
             else:
                 raise KeyError("Data  process not registered!")
         except KeyError as e:
             print(f"Error: {e}")
-    
+
     @classmethod
-    def notify_TM_path(cls, tag_name, path): 
+    def notify_TM_path(cls, tag_name, path):
         """
-        Acknowledge the transmission of the file. 
+        Acknowledge the transmission of the file.
         The file is then removed from the exclusion list.
         """
         try:
@@ -296,16 +310,17 @@ class DataHandler:
         for tag_name in cls.data_process_registry:
             cls.data_process_registry[tag_name].clean_up()
 
-
     @classmethod
     def delete_all_files(cls, path="/sd"):
         try:
             for file_name in os.listdir(path):
-                file_path = path + '/' + file_name
+                file_path = path + "/" + file_name
                 if os.stat(file_path)[0] & 0x8000:  # Check if file is a regular file
                     os.remove(file_path)
                 elif os.stat(file_path)[0] & 0x4000:  # Check if file is a directory
-                    cls.delete_all_files(file_path)  # Recursively delete files in subdirectories
+                    cls.delete_all_files(
+                        file_path
+                    )  # Recursively delete files in subdirectories
                     os.rmdir(file_path)  # Delete the empty directory
             print("All files and directories deleted successfully!")
         except Exception as e:
@@ -333,7 +348,9 @@ class DataHandler:
         for entry in os.listdir(root_path):
             file_path: str = join_path(root_path, entry)
             if os.stat(file_path)[0] & 0x4000:  # Check if entry is a directory
-                total_size += cls.compute_total_size_files(file_path)  # Recursively compute total size of files in subdirectories
+                total_size += cls.compute_total_size_files(
+                    file_path
+                )  # Recursively compute total size of files in subdirectories
             else:
                 total_size += os.stat(file_path)[6]
             pass
@@ -368,7 +385,7 @@ class DataHandler:
             printname += file
             if isdir:
                 printname += "/"
-            print('{0:<40} Size: {1:>10}'.format(printname, sizestr))
+            print("{0:<40} Size: {1:>10}".format(printname, sizestr))
             # recursively print directory contents
             if isdir:
                 cls.print_directory(path + "/" + file, tabs + 1)
@@ -393,7 +410,16 @@ class DataProcess:
         bytesize (int): The size of each new data line to be written to the file.
     """
 
-    def __init__(self, tag_name: str, data_keys: List[str], data_format: str, persistent: bool = True, line_limit: int = 1000, new_config_file: bool = False, home_path: str = "/sd") -> None:
+    def __init__(
+        self,
+        tag_name: str,
+        data_keys: List[str],
+        data_format: str,
+        persistent: bool = True,
+        line_limit: int = 1000,
+        new_config_file: bool = False,
+        home_path: str = "/sd",
+    ) -> None:
         """
         Initializes a DataProcess object.
 
@@ -413,37 +439,37 @@ class DataProcess:
         self.persistent = persistent
 
         # TODO Check formating e.g. 'iff', 'iif', 'fff', 'iii', etc. ~ done within compute_bytesize()
-        self.data_format = '<' +  data_format # Need to specify endianness to disable padding (https://stackoverflow.com/questions/47750056/python-struct-unpack-length-error/47750278#47750278)
+        self.data_format = "<" + data_format
+        # Need to specify endianness to disable padding (https://stackoverflow.com/questions/47750056/python-struct-unpack-length-error/47750278#47750278)
         self.bytesize = self.compute_bytesize(self.data_format)
 
         self.last_data = {}
-
 
         if self.persistent:
 
             self.status = _CLOSED
 
-            self.dir_path = home_path + '/' + tag_name + '/'
+            self.dir_path = home_path + "/" + tag_name + "/"
             self.create_folder()
-            
 
             # To Be Resolved for each file process, TODO check if int, positive, etc
-            self.size_limit = line_limit * self.bytesize  # Default size limit is 1000 data lines
+            self.size_limit = (
+                line_limit * self.bytesize
+            )  # Default size limit is 1000 data lines
 
             self.current_path = self.create_new_path()
 
-            self.delete_paths = [] # Paths that are flagged for deletion
-            self.excluded_paths = [] # Paths that are currently being transmitted
+            self.delete_paths = []  # Paths that are flagged for deletion
+            self.excluded_paths = []  # Paths that are currently being transmitted
 
             config_file_path = self.dir_path + _PROCESS_CONFIG_FILENAME
             if not path_exist(config_file_path) or new_config_file:
                 config_data = {
-                    'data_format': self.data_format[1:], # remove the < character
-                    'line_limit': line_limit
+                    "data_format": self.data_format[1:],  # remove the < character
+                    "line_limit": line_limit,
                 }
-                with open(config_file_path, 'w') as config_file:
+                with open(config_file_path, "w") as config_file:
                     json.dump(config_data, config_file)
-
 
     def create_folder(self) -> None:
         """
@@ -459,8 +485,6 @@ class DataProcess:
             # TODO log
             print("Folder already exists.")
 
-
-        
     def compute_bytesize(self, data_format: str) -> int:
         """
         Compute the bytesize for each new data line to be written to the file.
@@ -472,7 +496,7 @@ class DataProcess:
             int: The bytesize of each new data line.
         """
         b_size = 0
-        for c in data_format[1:]: # do not include the endianness character
+        for c in data_format[1:]:  # do not include the endianness character
             if c not in _FORMAT:
                 raise ValueError(f"Invalid format character '{c}'")
             b_size += _FORMAT[c]
@@ -495,8 +519,7 @@ class DataProcess:
             values = [data[key] for key in self.data_keys]
             bin_data = struct.pack(self.data_format, *values)
             self.file.write(bin_data)
-            self.file.flush() # Flush immediately
-
+            self.file.flush()  # Flush immediately
 
     def get_latest_data(self) -> dict:
         """
@@ -513,8 +536,7 @@ class DataProcess:
         else:
             # TODO handle case where no data has been logged yet?
             return None
-            #raise ValueError("No latest data point available.")
-
+            # raise ValueError("No latest data point available.")
 
     def resolve_current_file(self) -> None:
         """
@@ -530,7 +552,6 @@ class DataProcess:
                 self.current_path = self.create_new_path()
                 self.open()
 
-
     def create_new_path(self) -> str:
         """
         Create a new filename for the current file process.
@@ -539,7 +560,7 @@ class DataProcess:
             str: The new filename.
         """
         # TODO timestamp must be obtained through the REFERENCE TIME until the time module is done
-        return self.dir_path + self.tag_name + '_' + str(time.time()) + '.bin'
+        return self.dir_path + self.tag_name + "_" + str(time.time()) + ".bin"
 
     def open(self) -> None:
         """
@@ -561,19 +582,18 @@ class DataProcess:
         else:
             print("File is already closed.")
 
-
     def request_TM_path(self, latest: bool = False) -> Optional[str]:
         """
-        Returns the path of a designated file available for transmission. 
+        Returns the path of a designated file available for transmission.
         If no file is available, the function returns None.
 
-        The function store the file path to be excluded in clean-up policies. 
+        The function store the file path to be excluded in clean-up policies.
         Once fully transmitted, notify_TM_path() must be called to remove the file from the exclusion list.
         """
         # Assumes correct ordering (monotonic timestamp)
         # TODO
         files = os.listdir(self.dir_path)
-        if len(files) > 1: # Ignore process configuration file
+        if len(files) > 1:  # Ignore process configuration file
 
             if latest:
                 transmit_file = files[-1]
@@ -583,7 +603,7 @@ class DataProcess:
                 transmit_file = files[0]
                 if transmit_file == _PROCESS_CONFIG_FILENAME:
                     transmit_file = files[1]
-                
+
             tm_path = self.dir_path + transmit_file
 
             if tm_path == self.current_path:
@@ -595,20 +615,18 @@ class DataProcess:
         else:
             return None
 
-
-    def notify_TM_path(self, path: str) -> None: 
+    def notify_TM_path(self, path: str) -> None:
         """
-        Acknowledge the transmission of the file. 
+        Acknowledge the transmission of the file.
         The file is then removed from the excluded list and added to the deletion list.
         """
         if path in self.excluded_paths:
             self.excluded_paths.remove(path)
-            self.delete_paths.append(path) 
-            # TODO handle case where comms transmitted a file it wasn't suposed to? 
+            self.delete_paths.append(path)
+            # TODO handle case where comms transmitted a file it wasn't suposed to?
         else:
             # TODO log
             print("No file to acknowledge.")
-
 
     def clean_up(self) -> None:
         """
@@ -622,7 +640,6 @@ class DataProcess:
                 print(f"File {d_path} does not exist.")
 
             self.delete_paths.remove(d_path)
-        
 
     def get_storage_info(self) -> Tuple[int, int]:
         """
@@ -639,7 +656,6 @@ class DataProcess:
         total_size = len(files) * self.size_limit + self.get_current_file_size()
         return len(files), total_size
 
-
     def get_current_file_size(self) -> Optional[int]:
         """
         Get the current size of the file.
@@ -650,7 +666,7 @@ class DataProcess:
         if path_exist(self.current_path):
             try:
                 file_stats = os.stat(self.current_path)
-                filesize = file_stats[6] # size of the file in bytes
+                filesize = file_stats[6]  # size of the file in bytes
                 return filesize
             except OSError as e:
                 # TODO log
@@ -660,8 +676,6 @@ class DataProcess:
             # TODO handle case where file does not exist
             print("File does not exist.")
             return None
-
-    
 
     # DEBUG ONLY
     def read_current_file(self) -> List[Tuple[Any, ...]]:
@@ -694,13 +708,12 @@ class ImageProcess:
     pass
 
 
-
 def path_exist(path: str) -> bool:
     """
     Replacement for os.path.exists() function, which is not implemented in micropython. If the request for a directory, the function will return True if the directory exists, even if it is empty.
     """
     try_path = path
-    if path[-1] == '/':
+    if path[-1] == "/":
         try_path = path[:-1]
 
     try:
@@ -709,6 +722,7 @@ def path_exist(path: str) -> bool:
     except OSError as e:
         print(f"{e} - {try_path} doesn't exist")
         return False
+
 
 def join_path(*paths: str) -> str:
     """
@@ -720,4 +734,4 @@ def join_path(*paths: str) -> str:
     Returns:
         The joined path.
     """
-    return re.sub(r'/+', '/', '/'.join(paths))
+    return re.sub(r"/+", "/", "/".join(paths))

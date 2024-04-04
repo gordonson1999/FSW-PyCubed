@@ -1,7 +1,6 @@
-
 import sys
 
-for path in ['/hal', '/apps']:
+for path in ["/hal", "/apps"]:
     if path not in sys.path:
         sys.path.append(path)
 
@@ -19,10 +18,9 @@ DH.delete_all_files()
 
 try:
     # Run forever
-    state_manager.start('STARTUP')
+    state_manager.start("STARTUP")
     # import obdh_sd_test
     pass
 except Exception as e:
     print(e)
     # TODO Log the error
-
